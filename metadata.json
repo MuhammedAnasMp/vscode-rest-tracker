@@ -1,0 +1,6 @@
+{
+  "name": "Focus Recovery VS Code Extension",
+  "description": "An interactive VS Code extension simulator and production-ready source code generator for Focus Recovery, a clean wellness, postural, and optical reset assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
