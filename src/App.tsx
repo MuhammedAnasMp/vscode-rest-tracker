@@ -1,6 +1,5 @@
 /**
- * @license
- * SPDX-License-Identifier: Apache-2.0
+ * Focus Recovery - VS Code Extension Developer Workspace & Simulator
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -12,7 +11,6 @@ import {
   Play, 
   Check, 
   Clock, 
-  Plus, 
   RotateCcw, 
   Download, 
   Copy, 
@@ -26,22 +24,17 @@ import {
   X, 
   Sparkles, 
   Bell, 
-  ChevronUp, 
   AlertCircle, 
-  Cpu, 
   Sliders, 
-  Volume2, 
-  VolumeX, 
   User, 
-  TrendingUp, 
-  Calendar,
-  FastForward,
-  BookOpen
+  BookOpen,
+  ArrowUpRight,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EXTENSION_FILES, ExtensionFile } from './codeFiles';
 
-// Wellness / Progression Level definitions
+// Type definitions for user stats
 interface LevelConfig {
   level: number;
   displayName: string;
@@ -75,7 +68,7 @@ interface ActivityRecord {
 }
 
 export default function App() {
-  // --- STATE ---
+  // Navigation & UI tabs
   const [activeSidebarTab, setActiveSidebarTab] = useState<'explorer' | 'stats' | 'settings' | 'terminal' | 'readme'>('explorer');
   const [openTabs, setOpenTabs] = useState<string[]>(['README.md', '❤️ Dashboard']);
   const [activeTab, setActiveTab] = useState<string>('README.md');
@@ -84,7 +77,7 @@ export default function App() {
     src: true,
   });
 
-  // Settings state (mirrors focusRecovery.* settings)
+  // Settings state (synchronizes config variables)
   const [morningReminder, setMorningReminder] = useState<string>('08:00');
   const [eveningReminder, setEveningReminder] = useState<string>('19:00');
   const [autoProgress, setAutoProgress] = useState<boolean>(true);
@@ -92,38 +85,35 @@ export default function App() {
   const [enableNotifications, setEnableNotifications] = useState<boolean>(true);
   const [enableStatusBar, setEnableStatusBar] = useState<boolean>(true);
 
-  // User Stats & History (stored locally)
+  // Statistics State
   const [currentLevel, setCurrentLevel] = useState<number>(1);
   const [currentStreak, setCurrentStreak] = useState<number>(0);
   const [totalSessions, setTotalSessions] = useState<number>(0);
   const [lastCompletedSession, setLastCompletedSession] = useState<string | null>(null);
   const [history, setHistory] = useState<ActivityRecord[]>([]);
 
-  // Active Session Player
+  // Simulation playback engine
   const [isSessionRunning, setIsSessionRunning] = useState<boolean>(false);
   const [sessionPhase, setSessionPhase] = useState<'prepare' | 'hold' | 'rest' | 'complete' | 'none'>('none');
   const [sessionRep, setSessionRep] = useState<number>(1);
   const [sessionTimeRemaining, setSessionTimeRemaining] = useState<number>(0);
-  const [isFastForward, setIsFastForward] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
-  // UI state
+  // Toast Alerts & Telemetry Log entries
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
   const [commandPaletteSearch, setCommandPaletteSearch] = useState<string>('');
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    "[Focus Recovery] Starting development host...",
-    "[Focus Recovery] Extension loaded locally without cloud dependence.",
-    "[Focus Recovery] Active listener loaded for scheduled reminders (08:00 AM, 07:00 PM)."
-  ]);
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([
+    "[Focus Recovery] Developer Environment Bootstrapped successfully.",
+    "[Focus Recovery] Pure installable VS Code Extension source code created in '/extension/' directory.",
+    "[Focus Recovery] Reminder monitors activated for local morning and evening alarms."
+  ]);
 
-  // Refs
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // --- LOCAL PERSISTENCE ---
+  // Load stats from LocalStorage
   useEffect(() => {
-    // Load state from localStorage
     const savedLevel = localStorage.getItem('fr_current_level');
     const savedStreak = localStorage.getItem('fr_current_streak');
     const savedTotal = localStorage.getItem('fr_total_sessions');
@@ -137,31 +127,27 @@ export default function App() {
     const savedNotifs = localStorage.getItem('fr_enable_notifs');
     const savedStatus = localStorage.getItem('fr_enable_status');
 
-    if (savedLevel) {setCurrentLevel(parseInt(savedLevel));}
-    if (savedStreak) {setCurrentStreak(parseInt(savedStreak));}
-    if (savedTotal) {setTotalSessions(parseInt(savedTotal));}
-    if (savedLast) {setLastCompletedSession(savedLast);}
+    if (savedLevel) { setCurrentLevel(parseInt(savedLevel)); }
+    if (savedStreak) { setCurrentStreak(parseInt(savedStreak)); }
+    if (savedTotal) { setTotalSessions(parseInt(savedTotal)); }
+    if (savedLast) { setLastCompletedSession(savedLast); }
     if (savedHistory) {
-      try {
-        setHistory(JSON.parse(savedHistory));
-      } catch (e) {
-        setHistory([]);
-      }
+      try { setHistory(JSON.parse(savedHistory)); } catch (e) { setHistory([]); }
     }
 
-    if (savedMorning) {setMorningReminder(savedMorning);}
-    if (savedEvening) {setEveningReminder(savedEvening);}
-    if (savedAuto) {setAutoProgress(savedAuto === 'true');}
-    if (savedDiff) {setDifficulty(savedDiff);}
-    if (savedNotifs) {setEnableNotifications(savedNotifs === 'true');}
-    if (savedStatus) {setEnableStatusBar(savedStatus === 'true');}
+    if (savedMorning) { setMorningReminder(savedMorning); }
+    if (savedEvening) { setEveningReminder(savedEvening); }
+    if (savedAuto) { setAutoProgress(savedAuto === 'true'); }
+    if (savedDiff) { setDifficulty(savedDiff); }
+    if (savedNotifs) { setEnableNotifications(savedNotifs === 'true'); }
+    if (savedStatus) { setEnableStatusBar(savedStatus === 'true'); }
   }, []);
 
   const saveStatsToLocal = (lvl: number, strk: number, tot: number, last: string | null, hist: ActivityRecord[]) => {
     localStorage.setItem('fr_current_level', lvl.toString());
     localStorage.setItem('fr_current_streak', strk.toString());
     localStorage.setItem('fr_total_sessions', tot.toString());
-    if (last) {localStorage.setItem('fr_last_completed', last);}
+    if (last) { localStorage.setItem('fr_last_completed', last); }
     localStorage.setItem('fr_history', JSON.stringify(hist));
   };
 
@@ -169,24 +155,24 @@ export default function App() {
     localStorage.setItem(`fr_${key}`, value.toString());
   };
 
-  // --- LOGGING ---
+  // Add Terminal Log helper
   const addLog = (msg: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setTerminalLogs(prev => [...prev, `[${timestamp}] ${msg}`]);
   };
 
-  // --- TOAST NOTIFICATIONS ---
+  // Show simulated VS Code notification
   const showToast = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info', actions?: { label: string; action: () => void }[]) => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = Math.random().toString(36).substring(2, 9);
     setToasts(prev => [...prev, { id, message, type, actions }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 8000);
+    }, 7000);
   };
 
-  // --- CHIME AUDIO FEEDBACK ---
+  // Sound generator to mimic extension soundless/visual alerts with light feedback
   const playSound = (freq: number, type: 'sine' | 'triangle' | 'sawtooth' = 'sine', duration = 0.15) => {
-    if (isMuted) {return;}
+    if (isMuted) return;
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -201,7 +187,7 @@ export default function App() {
       osc.type = type;
       osc.frequency.setValueAtTime(freq, ctx.currentTime);
       
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
       
       osc.connect(gain);
@@ -210,69 +196,62 @@ export default function App() {
       osc.start();
       osc.stop(ctx.currentTime + duration);
     } catch (e) {
-      // Audio fallback
+      // Ignored browser context limits
     }
   };
 
-  // --- ACTIVE SESSION PLAYBACK CORE ENGINE ---
+  // Progression calculation configuration
   const activeLevelConfig = autoProgress 
     ? PROGRESSION_LEVELS.find(l => l.level === currentLevel) || PROGRESSION_LEVELS[0]
     : PROGRESSION_LEVELS.find(l => l.displayName === difficulty) || PROGRESSION_LEVELS[0];
 
+  // Active Simulation Ticker
   useEffect(() => {
-    let intervalId: any = null;
+    let timerId: any = null;
 
     if (isSessionRunning) {
       if (sessionTimeRemaining > 0) {
-        const speed = isFastForward ? 100 : 1000;
-        intervalId = setInterval(() => {
+        timerId = setInterval(() => {
           setSessionTimeRemaining(prev => prev - 1);
-        }, speed);
+        }, 1000);
       } else {
-        // Handle phase transitions
         if (sessionPhase === 'prepare') {
-          // Prepared, start hold 1
           playSound(660, 'triangle', 0.25);
           setSessionPhase('hold');
           setSessionTimeRemaining(activeLevelConfig.holdDuration);
-          addLog(`Session Step: Hold posture active for Repetition ${sessionRep}/${activeLevelConfig.reps}`);
+          addLog(`Session Step: Hold active for repetition ${sessionRep}/${activeLevelConfig.reps}`);
         } else if (sessionPhase === 'hold') {
-          // Hold done, check if final rep
           if (sessionRep >= activeLevelConfig.reps) {
-            // All reps completed!
             handleSessionCompleted(true);
           } else {
-            // Relax Rest
             playSound(440, 'sine', 0.2);
             setSessionPhase('rest');
             setSessionTimeRemaining(activeLevelConfig.restDuration);
-            addLog(`Session Step: Relaxing posture and ocular refocusing for Repetition ${sessionRep}/${activeLevelConfig.reps}`);
+            addLog(`Session Step: Relax posture & refocus eyes for repetition ${sessionRep}/${activeLevelConfig.reps}`);
           }
         } else if (sessionPhase === 'rest') {
-          // Rest done, start next hold
-          playSound(523.25, 'triangle', 0.2);
+          playSound(523, 'triangle', 0.2);
           setSessionRep(prev => prev + 1);
           setSessionPhase('hold');
           setSessionTimeRemaining(activeLevelConfig.holdDuration);
-          addLog(`Session Step: Hold posture active for Repetition ${sessionRep + 1}/${activeLevelConfig.reps}`);
+          addLog(`Session Step: Hold active for repetition ${sessionRep + 1}/${activeLevelConfig.reps}`);
         }
       }
     }
 
     return () => {
-      if (intervalId) {clearInterval(intervalId);}
+      if (timerId) clearInterval(timerId);
     };
-  }, [isSessionRunning, sessionPhase, sessionTimeRemaining, isFastForward, sessionRep, activeLevelConfig]);
+  }, [isSessionRunning, sessionPhase, sessionTimeRemaining, sessionRep, activeLevelConfig]);
 
   const startRecoverySession = () => {
     setIsSessionRunning(true);
     setSessionPhase('prepare');
     setSessionRep(1);
-    setSessionTimeRemaining(3); // 3 seconds preparation countdown
-    addLog(`Initiating session: ${activeLevelConfig.displayName}. Prepare phase active.`);
+    setSessionTimeRemaining(3); // 3s preparation countdown
+    addLog(`Command Trigger: Started Focus Recovery Session (${activeLevelConfig.displayName})`);
     playSound(440, 'sawtooth', 0.15);
 
-    // Auto-open Dashboard/Stats to see session or open a dedicated session editor tab
     if (!openTabs.includes('❤️ Dashboard')) {
       setOpenTabs(prev => [...prev, '❤️ Dashboard']);
     }
@@ -282,8 +261,8 @@ export default function App() {
   const cancelActiveSession = () => {
     setIsSessionRunning(false);
     setSessionPhase('none');
-    addLog("Active recovery session aborted by user request.");
-    showToast("Focus Recovery session was cancelled.", "warning");
+    addLog("Session Cancelled: Interrupted by developer simulation controller.");
+    showToast("Active Focus Recovery session was cancelled.", "warning");
     playSound(220, 'sine', 0.4);
   };
 
@@ -291,12 +270,11 @@ export default function App() {
     setIsSessionRunning(false);
     setSessionPhase('none');
     playSound(880, 'triangle', 0.3);
-    setTimeout(() => playSound(1318.51, 'triangle', 0.4), 150);
+    setTimeout(() => playSound(1318, 'triangle', 0.4), 150);
 
     const now = new Date();
     const isoString = now.toISOString();
 
-    // Streak checking
     let newStreak = currentStreak;
     if (completed) {
       if (lastCompletedSession) {
@@ -326,7 +304,6 @@ export default function App() {
     const updatedHistory = [...history, record];
     const newTotal = totalSessions + 1;
 
-    // Check level-up logic: increase level every 5 completed sessions under auto-progress
     let leveledUp = false;
     let finalLevel = currentLevel;
     if (autoProgress && currentLevel < 6) {
@@ -340,29 +317,28 @@ export default function App() {
       }
     }
 
-    // Update States
     setHistory(updatedHistory);
     setTotalSessions(newTotal);
     setLastCompletedSession(isoString);
     setCurrentStreak(newStreak);
+    
     if (leveledUp) {
       setCurrentLevel(finalLevel);
-      addLog(`CONGRATULATIONS: You advanced to Level ${finalLevel}! Your posture capacity is increasing.`);
-      showToast(`Level Advanced! You are now Level ${finalLevel} (${PROGRESSION_LEVELS[finalLevel-1].displayName}).`, 'success');
+      addLog(`Progression Advanced: Reached Level ${finalLevel}! Posture capacity and hold limits increased.`);
+      showToast(`Congratulations! You've advanced to Level ${finalLevel} (${PROGRESSION_LEVELS[finalLevel-1].displayName}).`, 'success');
     } else {
-      addLog(`Focus recovery session logged successfully. Completed sessions: ${newTotal}`);
-      showToast("Wellness recovery session completed! Wonderful job.", "success");
+      addLog(`Session Complete: Completed cycle logged. Total cycles: ${newTotal}`);
+      showToast("Focus Recovery cycle complete! Great job stretching and relaxing eyes.", "success");
     }
 
     saveStatsToLocal(finalLevel, newStreak, newTotal, isoString, updatedHistory);
   };
 
-  // --- MANUAL SETTINGS HANDLERS ---
   const handleToggleAutoProgress = () => {
     const nextVal = !autoProgress;
     setAutoProgress(nextVal);
     saveConfigToLocal('auto_progress', nextVal);
-    addLog(`Config Update: focusRecovery.autoProgress set to ${nextVal}`);
+    addLog(`Configuration updated: focusRecovery.autoProgress set to ${nextVal}`);
     showToast(`Auto-progression is now ${nextVal ? 'enabled' : 'disabled'}.`);
   };
 
@@ -370,51 +346,42 @@ export default function App() {
     setDifficulty(val);
     saveConfigToLocal('difficulty', val);
     
-    // Synchronize currentLevel with selected manual level index
     const index = PROGRESSION_LEVELS.findIndex(l => l.displayName === val);
     if (index !== -1) {
       setCurrentLevel(index + 1);
       saveStatsToLocal(index + 1, currentStreak, totalSessions, lastCompletedSession, history);
     }
     
-    addLog(`Config Update: focusRecovery.difficulty override set to ${val}`);
-    showToast(`Manual level set to ${val}`);
+    addLog(`Configuration updated: focusRecovery.difficulty override set to '${val}'`);
+    showToast(`Manual level override set to: ${val}`);
   };
 
   const handleResetProgress = () => {
-    if (confirm("Reset focus progress, streak counts, and activity logs? This operation cannot be undone.")) {
+    if (window.confirm("Reset extension statistics, streak counts, and activity logs? This operation cannot be undone.")) {
       setCurrentLevel(1);
       setCurrentStreak(0);
       setTotalSessions(0);
       setLastCompletedSession(null);
       setHistory([]);
       saveStatsToLocal(1, 0, 0, null, []);
-      addLog("Database Reset: Local statistics and globalState files successfully cleared.");
-      showToast("Focus Recovery history has been completely reset.", "warning");
+      addLog("Database Reset: Local globalState data files successfully cleared.");
+      showToast("Focus Recovery history records have been reset.", "warning");
     }
   };
 
-  const handleExportData = () => {
-    const dataObj = {
-      currentLevel,
-      currentStreak,
-      totalSessions,
-      lastCompletedSession,
-      autoProgress,
-      difficulty,
-      history
-    };
-    const blob = new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' });
+  // Download individual file dynamically in browser
+  const downloadSingleFile = (file: ExtensionFile) => {
+    const blob = new Blob([file.content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'focus-recovery-progress.json';
+    a.download = file.name;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    addLog("Export Complete: focusRecovery.globalState progress manifest outputted successfully.");
-    showToast("Statistics export file downloaded.", "success");
+    addLog(`Export: Downloaded file '${file.name}'`);
+    showToast(`Downloaded ${file.name} to your local drive!`, 'success');
   };
 
   const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -430,8 +397,8 @@ export default function App() {
             setTotalSessions(parsed.totalSessions || 0);
             setLastCompletedSession(parsed.lastCompletedSession);
             setHistory(parsed.history);
-            if (parsed.autoProgress !== undefined) {setAutoProgress(parsed.autoProgress);}
-            if (parsed.difficulty !== undefined) {setDifficulty(parsed.difficulty);}
+            if (parsed.autoProgress !== undefined) { setAutoProgress(parsed.autoProgress); }
+            if (parsed.difficulty !== undefined) { setDifficulty(parsed.difficulty); }
             
             saveStatsToLocal(
               parsed.currentLevel, 
@@ -440,19 +407,56 @@ export default function App() {
               parsed.lastCompletedSession, 
               parsed.history
             );
-            addLog("Import Success: GlobalState files imported correctly. Refreshed UI dashboard.");
+            addLog("Import Success: Refreshed statistics and histories.");
             showToast("Focus Recovery history loaded successfully!", "success");
           } else {
-            showToast("Invalid data structure inside JSON file.", "error");
+            showToast("Invalid JSON data format.", "error");
           }
         } catch (err) {
-          showToast("Failed to parse JSON file.", "error");
+          showToast("Failed to parse JSON backup.", "error");
         }
       };
     }
   };
 
-  // --- TAB CONTROLLER ---
+  const renderWeeklyActivityChart = () => {
+    const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const completionsMap = [3, 4, 2, 5, 4, 3, 2];
+    const realSessionsToday = history.filter(h => {
+      const d = new Date(h.timestamp);
+      return d.toDateString() === new Date().toDateString();
+    }).length;
+    completionsMap[6] = Math.max(completionsMap[6], realSessionsToday);
+    const maxVal = Math.max(...completionsMap, 5);
+
+    return (
+      <div className="flex items-end justify-between h-40 pt-4 px-2 border-b border-[#2d2d2d] pb-2">
+        {weekDays.map((day, i) => {
+          const heightPercent = (completionsMap[i] / maxVal) * 80 + 10;
+          return (
+            <div key={day} className="flex flex-col items-center flex-1 gap-1">
+              <div className="text-[10px] text-zinc-500 font-mono">{completionsMap[i]}</div>
+              <div className="w-full max-w-[22px] bg-indigo-950/40 rounded border border-indigo-500/30 hover:border-indigo-400 hover:bg-indigo-500/20 transition-all duration-300 flex items-end overflow-hidden" style={{ height: '100px' }}>
+                <div 
+                  className="w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-sm"
+                  style={{ height: `${heightPercent}%` }}
+                />
+              </div>
+              <div className="text-[10px] text-[#888] font-sans mt-1">{day}</div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const copyFileToClipboard = (filename: string, content: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedFile(filename);
+    showToast(`Copied source code for ${filename} to clipboard!`, "success");
+    setTimeout(() => setCopiedFile(null), 2000);
+  };
+
   const selectTab = (name: string) => {
     if (!openTabs.includes(name)) {
       setOpenTabs(prev => [...prev, name]);
@@ -469,15 +473,6 @@ export default function App() {
     }
   };
 
-  // --- DIRECT FILE REPLICATORS COPIERS ---
-  const copyFileToClipboard = (filename: string, content: string) => {
-    navigator.clipboard.writeText(content);
-    setCopiedFile(filename);
-    showToast(`Copied the source code for ${filename} to your clipboard!`, "success");
-    setTimeout(() => setCopiedFile(null), 2000);
-  };
-
-  // --- COMMAND PALETTE COMMAND ACTIONS ---
   const executeVSCodeCommand = (commandName: string) => {
     setCommandPaletteOpen(false);
     addLog(`Command Trigger: vscode.commands.executeCommand('${commandName}')`);
@@ -488,20 +483,12 @@ export default function App() {
         break;
       case 'Focus Recovery: Show Statistics':
         selectTab('❤️ Dashboard');
-        setActiveSidebarTab('stats');
         break;
       case 'Focus Recovery: Change Difficulty':
         selectTab('⚙️ Settings');
-        setActiveSidebarTab('settings');
         break;
       case 'Focus Recovery: Reset Progress':
         handleResetProgress();
-        break;
-      case 'Focus Recovery: Export Progress':
-        handleExportData();
-        break;
-      case 'Focus Recovery: Import Progress':
-        document.getElementById('hidden-import-input')?.click();
         break;
       case 'Focus Recovery: Show Source Code Explorer':
         setActiveSidebarTab('explorer');
@@ -514,28 +501,49 @@ export default function App() {
     }
   };
 
-  // --- CODE VIEWER REGEX PARSER FOR STYLIZED TEXT ---
+  const simulateAlarm = (type: 'morning' | 'evening') => {
+    const label = type === 'morning' ? "Morning Focus and Wellness" : "Evening Focus Recovery";
+    const timeLabel = type === 'morning' ? morningReminder : eveningReminder;
+    
+    playSound(440, 'triangle', 0.2);
+    setTimeout(() => playSound(554, 'triangle', 0.2), 150);
+    setTimeout(() => playSound(659, 'triangle', 0.3), 300);
+
+    showToast(
+      `[Alarm Schedule] It's ${timeLabel}. Your scheduled ${label} is active. Ready to stretch?`,
+      'info',
+      [
+        { label: "Start Session", action: () => startRecoverySession() },
+        { label: "Snooze 10m", action: () => {
+          showToast("Reminder snoozed for 10 minutes.", "info");
+          addLog("Alarm snoozed by user.");
+        }}
+      ]
+    );
+  };
+
+  // Stylized Syntax Highlighting parser
   function highlightCodeHTML(code: string, language: string) {
     if (language === 'json') {
       return code
-        .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")/g, '<span class="text-[#ce9178]">$1</span>') // strings
-        .replace(/(true|false)/g, '<span class="text-[#569cd6]">$1</span>') // booleans
-        .replace(/(null)/g, '<span class="text-[#569cd6]">$1</span>') // null
-        .replace(/\b(\d+)\b/g, '<span class="text-[#b5cea8]">$1</span>') // numbers
-        .replace(/(".*?")\s*:/g, '<span class="text-[#9cdcfe]">$1</span>:'); // keys
+        .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")/g, '<span class="text-[#ce9178]">$1</span>')
+        .replace(/(true|false)/g, '<span class="text-[#569cd6]">$1</span>')
+        .replace(/(null)/g, '<span class="text-[#569cd6]">$1</span>')
+        .replace(/\b(\d+)\b/g, '<span class="text-[#b5cea8]">$1</span>')
+        .replace(/(".*?")\s*:/g, '<span class="text-[#9cdcfe]">$1</span>:');
     }
     if (language === 'typescript') {
       return code
-        .replace(/(\/\*[\s\S]*?\*\/|\/\/.*)/g, '<span class="text-[#6a9955]">$1</span>') // comments
-        .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"|'(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\'])*'|`[\s\S]*?`)/g, '<span class="text-[#ce9178]">$1</span>') // strings
-        .replace(/\b(import|export|const|let|var|function|class|interface|type|extends|implements|return|if|else|for|while|try|catch|new|this|async|await|private|public|static|readonly|from|as|default|string|number|boolean|void|any|interface|export)\b/g, '<span class="text-[#569cd6]">$1</span>') // keywords
-        .replace(/\b(vscode|ProgressManager|SessionManager|ReminderManager|Dashboard|EXTENSION_FILES|UserProgress|SessionRecord|ProgressionLevel|PROGRESSION_LEVELS|clearInterval|setInterval|setTimeout)\b/g, '<span class="text-[#4ec9b0]">$1</span>') // classes/types/globals
-        .replace(/\b(\d+)\b/g, '<span class="text-[#b5cea8]">$1</span>'); // numbers
+        .replace(/(\/\*[\s\S]*?\*\/|\/\/.*)/g, '<span class="text-[#6a9955]">$1</span>')
+        .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"|'(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\'])*'|`[\s\S]*?`)/g, '<span class="text-[#ce9178]">$1</span>')
+        .replace(/\b(import|export|const|let|var|function|class|interface|type|extends|implements|return|if|else|for|while|try|catch|new|this|async|await|private|public|static|readonly|from|as|default|string|number|boolean|void|any|interface|export)\b/g, '<span class="text-[#569cd6]">$1</span>')
+        .replace(/\b(vscode|ProgressManager|SessionManager|ReminderManager|Dashboard|EXTENSION_FILES|UserProgress|SessionRecord|ProgressionLevel|PROGRESSION_LEVELS|clearInterval|setInterval|setTimeout)\b/g, '<span class="text-[#4ec9b0]">$1</span>')
+        .replace(/\b(\d+)\b/g, '<span class="text-[#b5cea8]">$1</span>');
     }
-    return code; // markdown
+    return code;
   }
 
-  // Handle hotkeys (Ctrl+Shift+P)
+  // Keybindings handler (Ctrl+Shift+P)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
@@ -547,177 +555,132 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // --- SIMULATED ALARM CLOCK ---
-  const simulateAlarm = (type: 'morning' | 'evening') => {
-    const timeLabel = type === 'morning' ? morningReminder : eveningReminder;
-    const nameLabel = type === 'morning' ? "Morning Focus Refresh" : "Evening Refocus Recovery";
-    playSound(440, 'triangle', 0.2);
-    setTimeout(() => playSound(554.37, 'triangle', 0.2), 150);
-    setTimeout(() => playSound(659.25, 'triangle', 0.3), 300);
-
-    showToast(
-      `[Alarm Schedule] It's ${timeLabel}. Time for your offline ${nameLabel}! Ready for your postural, focal and break exercise?`,
-      'info',
-      [
-        { label: "Start Session", action: () => startRecoverySession() },
-        { label: "Snooze 10m", action: () => {
-          showToast("Focus Recovery reminder snoozed for 10 minutes.", "info");
-          addLog("Alarm Event: Reminders snoozed 10 minutes by developer override.");
-        }}
-      ]
-    );
-  };
-
-  // --- RENDER CODE COMPONENT ---
-  const renderCodeEditor = (file: ExtensionFile) => {
+  // UI Code View Rendering Helper
+  const renderFileEditor = (file: ExtensionFile) => {
     const highlighted = highlightCodeHTML(file.content, file.language);
     const lineCount = file.content.split('\n').length;
     const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
 
     return (
-      <div className="flex flex-col h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm overflow-hidden select-text">
-        {/* File Description header */}
-        <div className="flex items-center justify-between px-6 py-3 bg-[#252526] border-b border-[#2d2d2d] shrink-0 text-xs">
+      <div className="flex flex-col h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-hidden">
+        {/* Sub-header actions */}
+        <div className="flex items-center justify-between px-5 py-2.5 bg-[#252526] border-b border-[#2d2d2d] shrink-0">
           <div className="flex items-center gap-3">
-            <span className="text-emerald-400 font-sans font-medium px-2 py-0.5 bg-emerald-950/50 rounded border border-emerald-800/30">
-              {file.language.toUpperCase()}
+            <span className="text-indigo-400 font-sans font-bold px-1.5 py-0.5 bg-indigo-950/40 rounded border border-indigo-800/20 uppercase tracking-wider text-[10px]">
+              {file.language}
             </span>
-            <span className="text-[#a1a1aa] font-sans italic">{file.description}</span>
+            <span className="text-[#a1a1aa] font-sans text-[11px] italic hidden sm:inline">{file.description}</span>
           </div>
-          <button 
-            onClick={() => copyFileToClipboard(file.name, file.content)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-[#2f3136] hover:bg-[#3f4248] text-[#cccccc] font-sans font-medium rounded transition border border-[#3e4147]"
-          >
-            {copiedFile === file.name ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-            {copiedFile === file.name ? "Copied!" : "Copy Source"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => copyFileToClipboard(file.name, file.content)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-[#2d2d2d] hover:bg-[#333333] text-[#cccccc] font-sans font-medium rounded transition border border-[#3e4147] cursor-pointer"
+            >
+              {copiedFile === file.name ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+              <span>{copiedFile === file.name ? "Copied" : "Copy Code"}</span>
+            </button>
+            <button 
+              onClick={() => downloadSingleFile(file)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-[#2d2d2d] hover:bg-[#333333] text-indigo-400 font-sans font-medium rounded transition border border-indigo-900/30 cursor-pointer"
+              title="Download standalone file directly"
+            >
+              <Download size={11} />
+              <span>Download File</span>
+            </button>
+          </div>
         </div>
 
-        {/* Scrollable code block */}
-        <div className="flex flex-1 overflow-auto leading-relaxed p-4 select-text">
-          <div className="text-right text-[#5a5a5a] pr-4 select-none border-r border-[#2d2d2d] shrink-0 text-[12px] leading-5 min-w-[2.5rem]">
+        {/* Highlighted code pane */}
+        <div className="flex flex-1 overflow-auto leading-relaxed p-4 select-text selection:bg-indigo-900/50">
+          <div className="text-right text-[#5a5a5a] pr-4 select-none border-r border-[#2d2d2d] shrink-0 text-[11px] leading-5 min-w-[2rem]">
             {lineNumbers.map(n => <div key={n}>{n}</div>)}
           </div>
-          <pre className="pl-4 overflow-x-auto text-[13px] leading-5 w-full select-text selection:bg-[#264f78]" dangerouslySetInnerHTML={{ __html: highlighted }} />
+          <pre className="pl-4 overflow-x-auto text-[12px] leading-5 w-full select-text whitespace-pre scrollbar-none" dangerouslySetInnerHTML={{ __html: highlighted }} />
         </div>
       </div>
     );
   };
 
-  // --- RENDER DAMPENED SVG DASHBOARD GRAPHS ---
-  const renderWeeklyActivityChart = () => {
-    // Mon-Sun logs
-    const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    // Simulate some completions for days of the week based on history
-    const completionsMap = [3, 4, 2, 5, 4, 3, 2]; // default simulated data
-    // Add real session history logs to Sunday
-    const realSessionsToday = history.filter(h => {
-      const d = new Date(h.timestamp);
-      return d.toDateString() === new Date().toDateString();
-    }).length;
-    completionsMap[6] = Math.max(completionsMap[6], realSessionsToday);
-
-    const maxVal = Math.max(...completionsMap, 5);
-
-    return (
-      <div className="flex items-end justify-between h-40 pt-4 px-2 border-b border-[#2d2d2d] pb-2">
-        {weekDays.map((day, i) => {
-          const heightPercent = (completionsMap[i] / maxVal) * 80 + 10;
-          return (
-            <div key={day} className="flex flex-col items-center flex-1 gap-1">
-              <div className="text-[10px] text-zinc-500 font-mono">{completionsMap[i]}</div>
-              <div className="w-full max-w-[22px] bg-indigo-950/40 rounded border border-indigo-500/30 hover:border-indigo-400 hover:bg-indigo-500/20 transition-all duration-300 flex items-end overflow-hidden" style={{ height: '100px' }}>
-                <motion.div 
-                  initial={{ height: 0 }}
-                  animate={{ height: `${heightPercent}%` }}
-                  transition={{ duration: 0.8, delay: i * 0.05 }}
-                  className="w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-sm"
-                />
-              </div>
-              <div className="text-[10px] text-[#888] font-sans mt-1">{day}</div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  // Progress Percent calculation
+  const completionsAtCurrent = history.filter(
+    h => h.level === currentLevel && h.completed
+  ).length;
+  const progressPercent = Math.min((completionsAtCurrent / 5) * 100, 100);
 
   return (
     <div className="flex flex-col h-screen bg-[#181818] text-[#cccccc] font-sans overflow-hidden select-none">
       
-      {/* 1. TOP HEADER / BRANDING BANNER AND SEARCH BAR (COMMAND PALETTE LAUNCHER) */}
-      <header className="flex items-center justify-between h-12 bg-[#2d2d2d] border-b border-[#181818] px-4 shrink-0">
+      {/* 1. TOP UTILITY STATUS BAR AND SEARCH CONTROL */}
+      <header className="flex items-center justify-between h-12 bg-[#2d2d2d] border-b border-[#1a1a1a] px-4 shrink-0 shadow-md">
         <div className="flex items-center gap-3">
-          {/* Animated custom visual brand */}
-          <div className="relative flex items-center justify-center w-7 h-7 bg-indigo-900 rounded-lg text-indigo-200 border border-indigo-500 shadow-md">
-            <Heart size={14} className="animate-pulse text-indigo-400" />
+          <div className="relative flex items-center justify-center w-7 h-7 bg-indigo-900 rounded text-indigo-300 border border-indigo-500/30">
+            <Heart size={14} className={isSessionRunning ? "animate-pulse text-red-400" : "text-indigo-400"} />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-white tracking-wide">FOCUS RECOVERY</span>
-            <span className="text-[9px] text-[#888888] font-mono">VS CODE EXTENSION BUILD SANDBOX</span>
+          <div>
+            <span className="text-xs font-bold text-white tracking-wide flex items-center gap-2">
+              FOCUS RECOVERY <span className="text-[9px] font-mono font-medium px-1.5 py-0.2 bg-indigo-950/60 text-indigo-300 rounded border border-indigo-700/20">EXTENSION DEV HUB</span>
+            </span>
+            <p className="text-[10px] text-zinc-500 font-mono -mt-0.5">Physical Posture, Wellness & Breaks inside VS Code</p>
           </div>
         </div>
 
-        {/* Top Centered Command Launcher */}
-        <div className="relative w-full max-w-md mx-4">
+        {/* Command Palette trigger */}
+        <div className="relative w-full max-w-sm sm:max-w-md mx-3">
           <button 
             onClick={() => setCommandPaletteOpen(true)}
-            className="flex items-center justify-between w-full h-7 px-3 bg-[#1e1e1e] hover:bg-[#2a2a2a] border border-[#3c3c3c] rounded text-left text-xs text-zinc-400 transition"
+            className="flex items-center justify-between w-full h-7 px-3 bg-[#1e1e1e] hover:bg-[#252526] border border-[#3e4147] rounded text-left text-xs text-zinc-400 transition"
           >
             <div className="flex items-center gap-2">
               <Search size={12} className="text-zinc-500" />
-              <span>Search Focus Recovery Commands...</span>
+              <span>Search Extension Commands...</span>
             </div>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] bg-[#2d2d2d] border border-[#444] rounded text-zinc-400 font-mono select-none">
+            <kbd className="px-1.5 py-0.5 text-[9px] bg-[#2d2d2d] border border-[#444] rounded text-zinc-400 font-mono select-none">
               Ctrl+Shift+P
             </kbd>
           </button>
 
-          {/* Interactive Command Palette Dropdown */}
           <AnimatePresence>
             {commandPaletteOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setCommandPaletteOpen(false)} />
                 <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
+                  initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute left-0 right-0 top-9 bg-[#252526] border border-[#3c3c3c] rounded shadow-2xl z-50 overflow-hidden text-xs"
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.1 }}
+                  className="absolute left-0 right-0 top-8 bg-[#252526] border border-[#3e4147] rounded-md shadow-2xl z-50 overflow-hidden text-xs text-[#cccccc]"
                 >
-                  <div className="p-2 border-b border-[#3c3c3c] bg-[#1e1e1e]">
+                  <div className="p-2 border-b border-[#3e4147] bg-[#1e1e1e]">
                     <input 
                       type="text"
-                      placeholder="Type a command to execute..."
+                      placeholder="Type extension command name..."
                       value={commandPaletteSearch}
                       onChange={(e) => setCommandPaletteSearch(e.target.value)}
-                      className="w-full h-7 px-2.5 bg-[#252526] text-white border border-[#3c3c3c] rounded outline-none focus:border-indigo-500"
+                      className="w-full h-7 px-2.5 bg-[#252526] text-white border border-[#3e4147] rounded outline-none focus:border-indigo-500 text-xs"
                       autoFocus
                     />
                   </div>
-                  <div className="max-h-64 overflow-y-auto">
+                  <div className="max-h-56 overflow-y-auto">
                     {[
-                      { label: "Focus Recovery: Start Session", desc: "Launches the posture & break visual countdown intervals" },
-                      { label: "Focus Recovery: Show Statistics", desc: "Opens dashboard highlighting your streaks, logs and level metrics" },
-                      { label: "Focus Recovery: Change Difficulty", desc: "Allows selection between progressive training levels" },
-                      { label: "Focus Recovery: Reset Progress", desc: "Clears tracked history and restores beginner presets" },
-                      { label: "Focus Recovery: Export Progress", desc: "Saves a local JSON state backup file on your device" },
-                      { label: "Focus Recovery: Import Progress", desc: "Imports a previously exported globalState backup" },
-                      { label: "Focus Recovery: Show Source Code Explorer", desc: "Active workspace editor showing typescript/JSON files" },
-                      { label: "Focus Recovery: Read Developer Manual", desc: "Loads user installation handbook" }
+                      { label: "Focus Recovery: Start Session", desc: "Launches the posture & break visual countdown" },
+                      { label: "Focus Recovery: Show Statistics", desc: "Opens the visual analytics logs & streak metrics dashboard" },
+                      { label: "Focus Recovery: Change Difficulty", desc: "Allows selection between progressive difficulty tiers" },
+                      { label: "Focus Recovery: Reset Progress", desc: "Clears tracked records and restores beginner configurations" },
+                      { label: "Focus Recovery: Show Source Code Explorer", desc: "Navigates workspace explorer displaying native TS files" },
+                      { label: "Focus Recovery: Read Developer Manual", desc: "Loads installation guide" }
                     ]
                       .filter(cmd => cmd.label.toLowerCase().includes(commandPaletteSearch.toLowerCase()))
                       .map((cmd) => (
                         <button
                           key={cmd.label}
                           onClick={() => executeVSCodeCommand(cmd.label)}
-                          className="w-full px-4 py-2.5 text-left border-b border-[#2d2d2d] hover:bg-indigo-600 hover:text-white group flex justify-between items-center transition"
+                          className="w-full px-4 py-2 text-left border-b border-[#2d2d2d] hover:bg-indigo-600 hover:text-white flex justify-between items-center transition"
                         >
                           <div className="flex flex-col">
-                            <span className="font-semibold text-zinc-100 group-hover:text-white">{cmd.label}</span>
-                            <span className="text-[10px] text-zinc-400 group-hover:text-indigo-200">{cmd.desc}</span>
+                            <span className="font-semibold text-zinc-100">{cmd.label}</span>
+                            <span className="text-[10px] text-zinc-400">{cmd.desc}</span>
                           </div>
-                          <ChevronRight size={12} className="text-zinc-600 group-hover:text-indigo-200" />
+                          <ChevronRight size={11} className="text-zinc-600" />
                         </button>
                       ))}
                   </div>
@@ -727,1130 +690,841 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        {/* Header Action Shortcuts */}
-        <div className="flex items-center gap-3">
+        {/* Global actions */}
+        <div className="flex items-center gap-2">
           <button 
             onClick={() => simulateAlarm('morning')}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-amber-950/30 hover:bg-amber-950/60 text-amber-300 border border-amber-800/40 rounded transition"
-            title="Simulate 8:00 AM Morning Schedule Alarm"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] bg-amber-950/20 hover:bg-amber-950/40 text-amber-300 border border-amber-900/30 rounded font-medium transition cursor-pointer"
           >
-            <Clock size={12} />
-            <span className="hidden md:inline font-medium">Test Morning Alarm</span>
+            <Clock size={11} />
+            <span className="hidden sm:inline">Test Morning Alarm</span>
           </button>
           <button 
             onClick={() => simulateAlarm('evening')}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-indigo-950/30 hover:bg-indigo-950/60 text-indigo-300 border border-indigo-800/40 rounded transition"
-            title="Simulate 7:00 PM Evening Schedule Alarm"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] bg-indigo-950/20 hover:bg-indigo-950/40 text-indigo-300 border border-indigo-900/30 rounded font-medium transition cursor-pointer"
           >
-            <Clock size={12} />
-            <span className="hidden md:inline font-medium">Test Evening Alarm</span>
+            <Clock size={11} />
+            <span className="hidden sm:inline">Test Evening Alarm</span>
           </button>
         </div>
       </header>
 
-      {/* 2. MAIN WORKSPACE */}
+      {/* 2. BODY SECTION */}
       <div className="flex flex-1 overflow-hidden">
         
-        {/* ACTIVITY BAR (Extreme Left Rail) */}
-        <nav className="w-14 bg-[#181818] flex flex-col justify-between items-center py-4 border-r border-[#101010] shrink-0">
-          <div className="flex flex-col gap-5 w-full items-center">
-            {/* Explorer icon */}
+        {/* ACTIVITY SIDE-RAIL */}
+        <nav className="w-12 bg-[#181818] flex flex-col justify-between items-center py-3 border-r border-[#1a1a1a] shrink-0">
+          <div className="flex flex-col gap-4 w-full items-center">
             <button 
               onClick={() => setActiveSidebarTab('explorer')}
-              className={`relative p-2 rounded transition-colors group ${activeSidebarTab === 'explorer' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              title="File Explorer (Extension Code)"
+              className={`relative p-2.5 rounded transition ${activeSidebarTab === 'explorer' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="File Explorer (Native Source)"
             >
-              {activeSidebarTab === 'explorer' && <div className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-indigo-500 rounded-r" />}
-              <Files size={20} />
+              {activeSidebarTab === 'explorer' && <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-indigo-500" />}
+              <Files size={18} />
             </button>
 
-            {/* Statistics / Interactive Dashboard icon */}
             <button 
               onClick={() => {
                 setActiveSidebarTab('stats');
                 selectTab('❤️ Dashboard');
               }}
-              className={`relative p-2 rounded transition-colors group ${activeSidebarTab === 'stats' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              title="Focus Recovery Dashboard"
+              className={`relative p-2.5 rounded transition ${activeSidebarTab === 'stats' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="Visual Dashboard Simulator"
             >
-              {activeSidebarTab === 'stats' && <div className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-indigo-500 rounded-r" />}
-              <Heart size={20} className={isSessionRunning ? "animate-pulse text-rose-500" : ""} />
+              {activeSidebarTab === 'stats' && <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-indigo-500" />}
+              <Heart size={18} className={isSessionRunning ? "animate-pulse text-rose-500" : ""} />
             </button>
 
-            {/* Configs Settings icon */}
             <button 
               onClick={() => {
                 setActiveSidebarTab('settings');
                 selectTab('⚙️ Settings');
               }}
-              className={`relative p-2 rounded transition-colors group ${activeSidebarTab === 'settings' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              title="Extension Settings (focusRecovery.*)"
+              className={`relative p-2.5 rounded transition ${activeSidebarTab === 'settings' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="Extension Preferences"
             >
-              {activeSidebarTab === 'settings' && <div className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-indigo-500 rounded-r" />}
-              <Settings size={20} />
+              {activeSidebarTab === 'settings' && <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-indigo-500" />}
+              <Settings size={18} />
             </button>
 
-            {/* Output terminal icon */}
             <button 
               onClick={() => setActiveSidebarTab('terminal')}
-              className={`relative p-2 rounded transition-colors group ${activeSidebarTab === 'terminal' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              title="Developer Terminal logs"
+              className={`relative p-2.5 rounded transition ${activeSidebarTab === 'terminal' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="Terminal Console Log Logs"
             >
-              {activeSidebarTab === 'terminal' && <div className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-indigo-500 rounded-r" />}
-              <Terminal size={20} />
+              {activeSidebarTab === 'terminal' && <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-indigo-500" />}
+              <Terminal size={18} />
             </button>
 
-            {/* Readme Manual icon */}
             <button 
               onClick={() => {
                 setActiveSidebarTab('readme');
                 selectTab('README.md');
               }}
-              className={`relative p-2 rounded transition-colors group ${activeSidebarTab === 'readme' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              title="Developer Manual & README"
+              className={`relative p-2.5 rounded transition ${activeSidebarTab === 'readme' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="Developer User Guide"
             >
-              {activeSidebarTab === 'readme' && <div className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-indigo-500 rounded-r" />}
-              <BookOpen size={20} />
+              {activeSidebarTab === 'readme' && <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-indigo-500" />}
+              <BookOpen size={18} />
             </button>
           </div>
 
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-indigo-950/80 border border-indigo-700/50 flex items-center justify-center text-indigo-300 text-xs font-semibold" title="Sandbox User">
-              <User size={14} />
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-indigo-950/80 border border-indigo-700/50 flex items-center justify-center text-indigo-300 text-xs font-semibold" title="VS Code Extension Dev">
+              <User size={13} />
             </div>
-            <button 
-              onClick={() => {
-                setActiveSidebarTab('settings');
-                selectTab('⚙️ Settings');
-              }}
-              className="text-zinc-500 hover:text-zinc-300 transition-colors"
-              title="VS Code Preferences"
-            >
-              <Sliders size={18} />
-            </button>
           </div>
         </nav>
 
-        {/* SIDEBAR CONTAINER */}
-        <aside className="w-64 bg-[#1e1e1e] border-r border-[#2d2d2d] flex flex-col overflow-hidden shrink-0">
+        {/* SIDEBAR VIEWPORT */}
+        <aside className="w-60 bg-[#1e1e1e] border-r border-[#2d2d2d] flex flex-col overflow-hidden shrink-0">
           
-          {/* File Explorer Content */}
+          {/* File Explorer tab */}
           {activeSidebarTab === 'explorer' && (
-            <div className="flex flex-col h-full">
-              <div className="px-4 py-2.5 text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-[#2d2d2d] bg-[#1e1e1e] flex justify-between items-center">
-                <span>VS Code Explorer</span>
-                <span className="text-[10px] text-zinc-600">WORKSPACE</span>
+            <div className="flex flex-col h-full text-xs">
+              <div className="px-4 py-2 border-b border-[#2d2d2d] font-bold text-[#888888] uppercase tracking-wider text-[10px] flex justify-between items-center bg-[#1e1e1e]">
+                <span>Extension Code Files</span>
+                <span className="text-[9px] px-1 bg-[#2b2b2b] rounded">SRC</span>
               </div>
-              <div className="flex-1 overflow-y-auto py-2 text-xs">
-                {/* Folder Header */}
+              <div className="flex-1 overflow-y-auto py-2">
                 <div 
                   onClick={() => setExpandedFolders(prev => ({ ...prev, root: !prev.root }))}
-                  className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer text-[#cccccc]"
+                  className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer font-bold text-white font-mono text-[11px]"
                 >
-                  {expandedFolders.root ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  <FolderOpen size={14} className="text-indigo-400 shrink-0" />
-                  <span className="font-bold tracking-tight text-white font-mono text-[11px]">focus-recovery</span>
+                  {expandedFolders.root ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                  <FolderOpen size={13} className="text-indigo-400" />
+                  <span>focus-recovery</span>
                 </div>
 
                 {expandedFolders.root && (
                   <div className="pl-4">
-                    {/* package.json */}
+                    {/* manifest */}
                     <div 
                       onClick={() => selectTab('package.json')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer ${activeTab === 'package.json' ? 'bg-[#2d2d2d] text-white border-l-2 border-indigo-500' : 'text-zinc-400'}`}
+                      className={`flex items-center gap-1.5 px-3 py-1 hover:bg-[#2a2a2a] cursor-pointer font-mono ${activeTab === 'package.json' ? 'bg-[#2d2d2d] text-indigo-400 border-l-2 border-indigo-500' : 'text-zinc-400'}`}
                     >
-                      <FileText size={14} className="text-amber-500 shrink-0" />
-                      <span className="font-mono">package.json</span>
+                      <FileText size={12} className="text-amber-500" />
+                      <span>package.json</span>
                     </div>
 
-                    {/* tsconfig.json */}
+                    {/* compiler config */}
                     <div 
                       onClick={() => selectTab('tsconfig.json')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer ${activeTab === 'tsconfig.json' ? 'bg-[#2d2d2d] text-white border-l-2 border-indigo-500' : 'text-zinc-400'}`}
+                      className={`flex items-center gap-1.5 px-3 py-1 hover:bg-[#2a2a2a] cursor-pointer font-mono ${activeTab === 'tsconfig.json' ? 'bg-[#2d2d2d] text-indigo-400 border-l-2 border-indigo-500' : 'text-zinc-400'}`}
                     >
-                      <File size={14} className="text-[#4ec9b0] shrink-0" />
-                      <span className="font-mono">tsconfig.json</span>
+                      <File size={12} className="text-emerald-400" />
+                      <span>tsconfig.json</span>
                     </div>
 
-                    {/* README.md */}
+                    {/* read manual */}
                     <div 
                       onClick={() => selectTab('README.md')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer ${activeTab === 'README.md' ? 'bg-[#2d2d2d] text-white border-l-2 border-indigo-500' : 'text-zinc-400'}`}
+                      className={`flex items-center gap-1.5 px-3 py-1 hover:bg-[#2a2a2a] cursor-pointer font-mono ${activeTab === 'README.md' ? 'bg-[#2d2d2d] text-indigo-400 border-l-2 border-indigo-500' : 'text-zinc-400'}`}
                     >
-                      <FileText size={14} className="text-sky-500 shrink-0" />
-                      <span className="font-mono">README.md</span>
+                      <FileText size={12} className="text-sky-400" />
+                      <span>README.md</span>
                     </div>
 
-                    {/* src Folder */}
+                    {/* src folder */}
                     <div 
                       onClick={() => setExpandedFolders(prev => ({ ...prev, src: !prev.src }))}
-                      className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer text-[#cccccc] mt-1"
+                      className="flex items-center gap-1.5 px-3 py-1 hover:bg-[#2a2a2a] cursor-pointer text-[#cccccc] mt-1 font-bold font-mono"
                     >
-                      {expandedFolders.src ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      <Folder size={14} className="text-indigo-400 shrink-0" />
-                      <span className="font-bold font-mono text-[11px]">src</span>
+                      {expandedFolders.src ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                      <Folder size={13} className="text-indigo-400" />
+                      <span>src</span>
                     </div>
 
                     {expandedFolders.src && (
-                      <div className="pl-4">
-                        {/* src/types.ts */}
-                        <div 
-                          onClick={() => selectTab('src/types.ts')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer ${activeTab === 'src/types.ts' ? 'bg-[#2d2d2d] text-white border-l-2 border-indigo-500' : 'text-zinc-400'}`}
-                        >
-                          <FileText size={14} className="text-sky-400 shrink-0" />
-                          <span className="font-mono">types.ts</span>
-                        </div>
-
-                        {/* src/progressManager.ts */}
-                        <div 
-                          onClick={() => selectTab('src/progressManager.ts')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer ${activeTab === 'src/progressManager.ts' ? 'bg-[#2d2d2d] text-white border-l-2 border-indigo-500' : 'text-zinc-400'}`}
-                        >
-                          <FileText size={14} className="text-[#3b82f6] shrink-0" />
-                          <span className="font-mono">progressManager.ts</span>
-                        </div>
-
-                        {/* src/sessionManager.ts */}
-                        <div 
-                          onClick={() => selectTab('src/sessionManager.ts')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer ${activeTab === 'src/sessionManager.ts' ? 'bg-[#2d2d2d] text-white border-l-2 border-indigo-500' : 'text-zinc-400'}`}
-                        >
-                          <FileText size={14} className="text-[#3b82f6] shrink-0" />
-                          <span className="font-mono">sessionManager.ts</span>
-                        </div>
-
-                        {/* src/reminderManager.ts */}
-                        <div 
-                          onClick={() => selectTab('src/reminderManager.ts')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer ${activeTab === 'src/reminderManager.ts' ? 'bg-[#2d2d2d] text-white border-l-2 border-indigo-500' : 'text-zinc-400'}`}
-                        >
-                          <FileText size={14} className="text-[#3b82f6] shrink-0" />
-                          <span className="font-mono">reminderManager.ts</span>
-                        </div>
-
-                        {/* src/dashboard.ts */}
-                        <div 
-                          onClick={() => selectTab('src/dashboard.ts')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer ${activeTab === 'src/dashboard.ts' ? 'bg-[#2d2d2d] text-white border-l-2 border-indigo-500' : 'text-zinc-400'}`}
-                        >
-                          <FileText size={14} className="text-[#3b82f6] shrink-0" />
-                          <span className="font-mono">dashboard.ts</span>
-                        </div>
-
-                        {/* src/extension.ts */}
-                        <div 
-                          onClick={() => selectTab('src/extension.ts')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 hover:bg-[#2a2a2a] cursor-pointer ${activeTab === 'src/extension.ts' ? 'bg-[#2d2d2d] text-white border-l-2 border-indigo-500' : 'text-zinc-400'}`}
-                        >
-                          <FileText size={14} className="text-amber-400 shrink-0" />
-                          <span className="font-mono">extension.ts</span>
-                        </div>
+                      <div className="pl-3 border-l border-[#2d2d2d] ml-4">
+                        {[
+                          { name: 'types.ts', color: 'text-sky-400' },
+                          { name: 'progressManager.ts', color: 'text-indigo-400' },
+                          { name: 'sessionManager.ts', color: 'text-indigo-400' },
+                          { name: 'reminderManager.ts', color: 'text-indigo-400' },
+                          { name: 'dashboard.ts', color: 'text-indigo-400' },
+                          { name: 'extension.ts', color: 'text-amber-400' }
+                        ].map(f => (
+                          <div 
+                            key={f.name}
+                            onClick={() => selectTab(`src/${f.name}`)}
+                            className={`flex items-center gap-1.5 px-2 py-1 hover:bg-[#2a2a2a] cursor-pointer font-mono ${activeTab === `src/${f.name}` ? 'bg-[#2d2d2d] text-indigo-400 border-l-2 border-indigo-500' : 'text-zinc-400'}`}
+                          >
+                            <FileText size={11} className={f.color} />
+                            <span>{f.name}</span>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
                 )}
               </div>
-              
-              <div className="p-4 bg-[#181818] border-t border-[#2d2d2d]">
+
+              <div className="p-3 bg-[#181818] border-t border-[#2d2d2d] flex flex-col gap-2">
+                <div className="flex items-center gap-1 text-[10px] text-zinc-500 font-sans">
+                  <Info size={10} />
+                  <span>Download zip or export layout</span>
+                </div>
                 <button 
                   onClick={startRecoverySession}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded transition text-xs border border-indigo-500"
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded transition text-[11px] cursor-pointer"
                 >
-                  <Play size={12} fill="currentColor" />
-                  <span>Start Session</span>
+                  <Play size={10} fill="currentColor" />
+                  <span>Test Run Extension</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* Statistics Dashboard sidebar info quick-view */}
+          {/* Stats Dashboard tab */}
           {activeSidebarTab === 'stats' && (
-            <div className="flex flex-col h-full text-xs">
-              <div className="px-4 py-2.5 text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-[#2d2d2d] bg-[#1e1e1e]">
-                <span>Status Metrics</span>
+            <div className="flex flex-col h-full text-xs p-4 gap-4">
+              <span className="font-bold text-[#888888] uppercase tracking-wider text-[10px]">Extension Metrics</span>
+              
+              <div className="p-3 bg-[#181818] border border-[#2d2d2d] rounded flex flex-col gap-1">
+                <span className="text-zinc-500 text-[10px]">CURRENT LEVEL</span>
+                <span className="text-base font-bold text-white">{activeLevelConfig.displayName}</span>
+                <span className="text-[10px] text-zinc-400 font-mono mt-1">Hold: {activeLevelConfig.holdDuration}s • Reps: {activeLevelConfig.reps}</span>
               </div>
-              <div className="p-4 flex flex-col gap-4">
-                <div className="bg-[#252526] p-3 rounded border border-[#2d2d2d]">
-                  <div className="text-[10px] uppercase text-zinc-500 font-semibold mb-1">Active Progression</div>
-                  <div className="text-sm font-bold text-white">{activeLevelConfig.displayName}</div>
-                  <div className="mt-2 text-[10px] text-zinc-400">
-                    Hold: {activeLevelConfig.holdDuration}s • Rest: {activeLevelConfig.restDuration}s • Reps: {activeLevelConfig.reps}
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-[#252526] p-2.5 rounded border border-[#2d2d2d] text-center">
-                    <div className="text-[9px] uppercase text-zinc-500 font-semibold">Streak</div>
-                    <div className="text-lg font-extrabold text-white">{currentStreak} Days</div>
-                  </div>
-                  <div className="bg-[#252526] p-2.5 rounded border border-[#2d2d2d] text-center">
-                    <div className="text-[9px] uppercase text-zinc-500 font-semibold">Completed</div>
-                    <div className="text-lg font-extrabold text-white">{totalSessions}</div>
-                  </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 bg-[#181818] border border-[#2d2d2d] rounded flex flex-col">
+                  <span className="text-zinc-500 text-[9px] uppercase">STREAK</span>
+                  <span className="text-sm font-bold text-white">{currentStreak} Days</span>
                 </div>
-
-                <div className="bg-[#252526] p-3 rounded border border-[#2d2d2d] text-[11px]">
-                  <div className="font-semibold text-zinc-300 mb-2">Daily Reminders</div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-zinc-500">Morning alarm:</span>
-                    <span className="font-mono text-zinc-200">{morningReminder}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">Evening alarm:</span>
-                    <span className="font-mono text-zinc-200">{eveningReminder}</span>
-                  </div>
+                <div className="p-2.5 bg-[#181818] border border-[#2d2d2d] rounded flex flex-col">
+                  <span className="text-zinc-500 text-[9px] uppercase">CYCLES</span>
+                  <span className="text-sm font-bold text-white">{totalSessions} Sessions</span>
                 </div>
-
-                <button 
-                  onClick={() => selectTab('❤️ Dashboard')}
-                  className="w-full py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-white border border-[#3c3c3c] rounded text-center font-medium transition"
-                >
-                  Show Graphical Webview
-                </button>
               </div>
+
+              <div className="flex-1 overflow-y-auto">
+                <span className="text-zinc-500 text-[10px] font-bold block mb-2 uppercase">Exercise Guidelines</span>
+                <div className="p-3 bg-zinc-900/50 border border-zinc-800 rounded text-[11px] leading-relaxed text-zinc-400">
+                  Follow hold durations carefully to align the spine, release upper traps, and perform eye focus adjustments during rest.
+                </div>
+              </div>
+
+              <button 
+                onClick={startRecoverySession}
+                className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-medium text-[11px] transition cursor-pointer"
+              >
+                Launch Simulated Cycle
+              </button>
             </div>
           )}
 
-          {/* Extension settings Sidebar tab */}
+          {/* Settings Tab */}
           {activeSidebarTab === 'settings' && (
-            <div className="flex flex-col h-full text-xs">
-              <div className="px-4 py-2.5 text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-[#2d2d2d] bg-[#1e1e1e] flex justify-between items-center">
-                <span>EXTENSION SETTINGS</span>
-                <Sliders size={12} className="text-zinc-500" />
+            <div className="flex flex-col h-full text-xs p-4 gap-3">
+              <span className="font-bold text-[#888888] uppercase tracking-wider text-[10px] mb-1">Configuration Settings</span>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-zinc-400 font-mono text-[10px]">focusRecovery.morningReminder</span>
+                <input 
+                  type="text" 
+                  value={morningReminder} 
+                  onChange={(e) => {
+                    setMorningReminder(e.target.value);
+                    saveConfigToLocal('morning', e.target.value);
+                    addLog(`Config changed: morningReminder = '${e.target.value}'`);
+                  }}
+                  className="w-full bg-[#181818] border border-[#3e4147] rounded p-1.5 text-white outline-none focus:border-indigo-500 text-[11px] font-mono"
+                />
               </div>
-              <div className="p-4 flex flex-col gap-4 flex-1 overflow-y-auto">
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-zinc-300">Morning Reminder (HH:MM)</label>
-                  <input 
-                    type="time" 
-                    value={morningReminder}
-                    onChange={(e) => {
-                      setMorningReminder(e.target.value);
-                      saveConfigToLocal('morning', e.target.value);
-                      addLog(`focusRecovery.morningReminder updated to ${e.target.value}`);
-                    }}
-                    className="bg-[#2d2d2d] text-white border border-[#3c3c3c] px-2 py-1 rounded"
-                  />
-                </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-zinc-300">Evening Reminder (HH:MM)</label>
-                  <input 
-                    type="time" 
-                    value={eveningReminder}
-                    onChange={(e) => {
-                      setEveningReminder(e.target.value);
-                      saveConfigToLocal('evening', e.target.value);
-                      addLog(`focusRecovery.eveningReminder updated to ${e.target.value}`);
-                    }}
-                    className="bg-[#2d2d2d] text-white border border-[#3c3c3c] px-2 py-1 rounded"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-1 border-t border-[#2d2d2d] mt-2">
-                  <div className="flex flex-col pr-2">
-                    <span className="font-semibold text-zinc-300">Auto Progress</span>
-                    <span className="text-[10px] text-zinc-500">Scale level every 5 sessions</span>
-                  </div>
-                  <input 
-                    type="checkbox"
-                    checked={autoProgress}
-                    onChange={handleToggleAutoProgress}
-                    className="w-4 h-4 rounded text-indigo-500 focus:ring-0 cursor-pointer"
-                  />
-                </div>
-
-                {!autoProgress && (
-                  <div className="flex flex-col gap-1.5 border-t border-[#2d2d2d] pt-2">
-                    <label className="font-semibold text-zinc-300">Difficulty Level Override</label>
-                    <select
-                      value={difficulty}
-                      onChange={(e) => handleChangeManualDifficulty(e.target.value)}
-                      className="bg-[#2d2d2d] text-white border border-[#3c3c3c] px-2 py-1 rounded cursor-pointer"
-                    >
-                      {PROGRESSION_LEVELS.map(l => (
-                        <option key={l.level} value={l.displayName}>{l.displayName}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between py-1 border-t border-[#2d2d2d]">
-                  <div className="flex flex-col pr-2">
-                    <span className="font-semibold text-zinc-300">Enable Notifications</span>
-                    <span className="text-[10px] text-zinc-500">Triggers alert overlays</span>
-                  </div>
-                  <input 
-                    type="checkbox"
-                    checked={enableNotifications}
-                    onChange={(e) => {
-                      setEnableNotifications(e.target.checked);
-                      saveConfigToLocal('enable_notifs', e.target.checked);
-                      addLog(`focusRecovery.enableNotifications set to ${e.target.checked}`);
-                    }}
-                    className="w-4 h-4 rounded text-indigo-500 focus:ring-0 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-1 border-t border-[#2d2d2d]">
-                  <div className="flex flex-col pr-2">
-                    <span className="font-semibold text-zinc-300">Status Bar Heart</span>
-                    <span className="text-[10px] text-zinc-500">Show status bar shortcut</span>
-                  </div>
-                  <input 
-                    type="checkbox"
-                    checked={enableStatusBar}
-                    onChange={(e) => {
-                      setEnableStatusBar(e.target.checked);
-                      saveConfigToLocal('enable_status', e.target.checked);
-                      addLog(`focusRecovery.enableStatusBar set to ${e.target.checked}`);
-                    }}
-                    className="w-4 h-4 rounded text-indigo-500 focus:ring-0 cursor-pointer"
-                  />
-                </div>
-
-                <div className="pt-3 border-t border-[#2d2d2d] flex flex-col gap-2">
-                  <button 
-                    onClick={handleResetProgress}
-                    className="w-full py-1.5 bg-rose-950/40 hover:bg-rose-950/60 text-rose-300 border border-rose-800/40 rounded transition text-center font-semibold"
-                  >
-                    Reset Progress
-                  </button>
-                  <button 
-                    onClick={handleExportData}
-                    className="w-full py-1.5 bg-[#2d2d2d] hover:bg-[#3a3d41] text-zinc-300 border border-[#3c3c3c] rounded transition text-center font-semibold flex items-center justify-center gap-1.5"
-                  >
-                    <Download size={12} />
-                    <span>Export JSON Backups</span>
-                  </button>
-                  <div className="relative">
-                    <input 
-                      id="hidden-import-input"
-                      type="file" 
-                      accept=".json"
-                      onChange={handleImportData}
-                      className="hidden"
-                    />
-                    <button 
-                      onClick={() => document.getElementById('hidden-import-input')?.click()}
-                      className="w-full py-1.5 bg-[#2d2d2d] hover:bg-[#3a3d41] text-zinc-300 border border-[#3c3c3c] rounded transition text-center font-semibold flex items-center justify-center gap-1.5"
-                    >
-                      <Plus size={12} />
-                      <span>Import JSON Backup</span>
-                    </button>
-                  </div>
-                </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-zinc-400 font-mono text-[10px]">focusRecovery.eveningReminder</span>
+                <input 
+                  type="text" 
+                  value={eveningReminder} 
+                  onChange={(e) => {
+                    setEveningReminder(e.target.value);
+                    saveConfigToLocal('evening', e.target.value);
+                    addLog(`Config changed: eveningReminder = '${e.target.value}'`);
+                  }}
+                  className="w-full bg-[#181818] border border-[#3e4147] rounded p-1.5 text-white outline-none focus:border-indigo-500 text-[11px] font-mono"
+                />
               </div>
-            </div>
-          )}
 
-          {/* Developer logs console sidebar tab */}
-          {activeSidebarTab === 'terminal' && (
-            <div className="flex flex-col h-full text-xs">
-              <div className="px-4 py-2.5 text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-[#2d2d2d] bg-[#1e1e1e] flex justify-between items-center">
-                <span>DEVELOPER LOGGER</span>
-                <button onClick={() => setTerminalLogs([])} className="text-zinc-500 hover:text-zinc-300" title="Clear logs">
-                  <RotateCcw size={12} />
+              <div className="flex items-center justify-between py-1 border-t border-[#2d2d2d] mt-2">
+                <div className="flex flex-col">
+                  <span className="font-semibold text-white">Adaptive Progression</span>
+                  <p className="text-[9px] text-zinc-500 leading-tight">Increases level every 5 sessions</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={autoProgress} 
+                  onChange={handleToggleAutoProgress}
+                  className="cursor-pointer accent-indigo-500"
+                />
+              </div>
+
+              {!autoProgress && (
+                <div className="flex flex-col gap-1 mt-1">
+                  <span className="text-zinc-400 font-mono text-[10px]">focusRecovery.difficulty override</span>
+                  <select 
+                    value={difficulty}
+                    onChange={(e) => handleChangeManualDifficulty(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#3e4147] rounded p-1.5 text-white outline-none text-[11px]"
+                  >
+                    {PROGRESSION_LEVELS.map(l => (
+                      <option key={l.displayName} value={l.displayName}>{l.displayName}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between py-1 border-t border-[#2d2d2d]">
+                <span className="font-semibold text-white">Soundless Alarms</span>
+                <input 
+                  type="checkbox" 
+                  checked={enableNotifications} 
+                  onChange={(e) => {
+                    setEnableNotifications(e.target.checked);
+                    saveConfigToLocal('enable_notifs', e.target.checked);
+                    addLog(`Config changed: enableNotifications = ${e.target.checked}`);
+                  }}
+                  className="cursor-pointer accent-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between py-1 border-t border-[#2d2d2d]">
+                <span className="font-semibold text-white">Status Bar Heart</span>
+                <input 
+                  type="checkbox" 
+                  checked={enableStatusBar} 
+                  onChange={(e) => {
+                    setEnableStatusBar(e.target.checked);
+                    saveConfigToLocal('enable_status', e.target.checked);
+                    addLog(`Config changed: enableStatusBar = ${e.target.checked}`);
+                  }}
+                  className="cursor-pointer accent-indigo-500"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-[#2d2d2d] flex flex-col gap-1.5 mt-2">
+                <button 
+                  onClick={handleResetProgress}
+                  className="w-full py-1 text-red-400 hover:text-red-300 bg-red-950/20 hover:bg-red-950/30 border border-red-900/30 rounded text-[10px] transition cursor-pointer"
+                >
+                  Clear Extension History
                 </button>
               </div>
-              <div className="p-3 bg-[#121212] flex-1 overflow-y-auto font-mono text-[11px] text-zinc-400 leading-relaxed flex flex-col-reverse gap-2">
-                {[...terminalLogs].reverse().map((log, i) => (
-                  <div key={i} className="border-b border-[#1c1c1c] pb-1 break-all">
-                    {log}
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
-          {/* User Guide Sidebar tab */}
-          {activeSidebarTab === 'readme' && (
-            <div className="flex flex-col h-full text-xs">
-              <div className="px-4 py-2.5 text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-[#2d2d2d] bg-[#1e1e1e]">
-                <span>EXTENSION MANUAL</span>
-              </div>
-              <div className="p-4 flex flex-col gap-3.5 flex-1 overflow-y-auto leading-relaxed text-zinc-400">
-                <h4 className="font-bold text-zinc-200 text-sm">Focus Recovery</h4>
-                <p>An auxiliary assistant crafted to guide developers through physical posture, visual, and screen-break recovery intervals without external tracking.</p>
-                
-                <h5 className="font-bold text-zinc-200 mt-2">Active Phases</h5>
-                <ul className="list-disc pl-4 flex flex-col gap-1">
-                  <li><strong>Prepare:</strong> A 3s warm-up to align spine, balance weight.</li>
-                  <li><strong>Activate (Hold):</strong> Deep spinal alignment and neck traction hold for hold duration.</li>
-                  <li><strong>Relax (Rest):</strong> Complete release of hold and visual refocus away from screens.</li>
-                </ul>
+          {/* Terminal tab info */}
+          {activeSidebarTab === 'terminal' && (
+            <div className="flex flex-col h-full text-xs p-4 gap-3">
+              <span className="font-bold text-[#888888] uppercase tracking-wider text-[10px]">Active Developer Console</span>
+              <p className="text-zinc-500 text-[11px] leading-relaxed">
+                Check runtime notifications, event triggers, telemetry loops, and local data compilation logs here.
+              </p>
+              <button 
+                onClick={() => setTerminalLogs(["[Focus Recovery] Terminal logs cleared."])}
+                className="w-full py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] text-zinc-300 border border-zinc-700 transition cursor-pointer"
+              >
+                Clear Terminal Stream
+              </button>
+            </div>
+          )}
 
-                <h5 className="font-bold text-zinc-200 mt-2">Progression</h5>
-                <p>Every 5 completed sessions automatically unlocks the next difficulty level. You can toggle auto-progression off in the settings tab to specify your level manually.</p>
-              </div>
+          {/* User manual quick links */}
+          {activeSidebarTab === 'readme' && (
+            <div className="flex flex-col h-full text-xs p-4 gap-3">
+              <span className="font-bold text-[#888888] uppercase tracking-wider text-[10px]">Developer Guide</span>
+              <p className="text-zinc-400 text-[11px] leading-relaxed">
+                Learn how to compile, side-load, and test this extension directly on your computer's native VS Code setup.
+              </p>
+              <button 
+                onClick={() => selectTab('README.md')}
+                className="w-full py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-indigo-400 border border-zinc-700 transition font-medium cursor-pointer"
+              >
+                Open README.md Manual
+              </button>
             </div>
           )}
         </aside>
 
-        {/* 3. WORKSPACE EDITOR CONTAINER */}
+        {/* 3. CENTER / RIGHT WORKSPACE */}
         <main className="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden relative">
           
-          {/* EDITOR TABS ROW */}
-          <div className="h-9 bg-[#2d2d2d] border-b border-[#181818] flex items-center overflow-x-auto shrink-0 scrollbar-none">
-            {openTabs.map((tabName) => {
-              const isActive = activeTab === tabName;
-              return (
-                <div 
-                  key={tabName}
-                  onClick={() => setActiveTab(tabName)}
-                  className={`flex items-center gap-2 h-full px-4 border-r border-[#1e1e1e] cursor-pointer text-xs transition-colors ${isActive ? 'bg-[#1e1e1e] text-white border-t-2 border-indigo-500' : 'bg-[#252526] hover:bg-[#2a2a2a] text-zinc-500'}`}
-                >
-                  {tabName.startsWith('❤️') ? <Heart size={12} className="text-rose-500 shrink-0" /> : 
-                   tabName.startsWith('⚙️') ? <Settings size={12} className="text-indigo-400 shrink-0" /> : 
-                   tabName.endsWith('.json') ? <FileText size={12} className="text-amber-500 shrink-0" /> : 
-                   tabName.endsWith('.md') ? <FileText size={12} className="text-sky-500 shrink-0" /> :
-                   <FileText size={12} className="text-sky-400 shrink-0" />}
-                  <span className="font-mono">{tabName.split('/').pop()}</span>
-                  <button 
-                    onClick={(e) => closeTab(e, tabName)}
-                    className="p-0.5 hover:bg-[#3c3c3c] rounded text-zinc-600 hover:text-white"
+          {/* TAB HEADER BAR */}
+          <div className="flex items-center justify-between h-9 bg-[#252526] border-b border-[#181818] overflow-x-auto scrollbar-none shrink-0">
+            <div className="flex items-center h-full">
+              {openTabs.map(tab => {
+                const isActive = activeTab === tab;
+                return (
+                  <div 
+                    key={tab}
+                    onClick={() => {
+                      setActiveTab(tab);
+                      if (tab.includes('src/')) {
+                        setActiveSidebarTab('explorer');
+                      } else if (tab === '❤️ Dashboard') {
+                        setActiveSidebarTab('stats');
+                      } else if (tab === '⚙️ Settings') {
+                        setActiveSidebarTab('settings');
+                      } else if (tab === 'README.md') {
+                        setActiveSidebarTab('readme');
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-4 h-full border-r border-[#1e1e1e] cursor-pointer text-xs transition-colors ${isActive ? 'bg-[#1e1e1e] text-white font-medium border-t-2 border-indigo-500' : 'bg-[#2d2d2d] hover:bg-[#282828] text-zinc-400'}`}
                   >
-                    <X size={10} />
-                  </button>
-                </div>
-              );
-            })}
+                    <span className="text-[11px] font-mono">{tab.replace('src/', '')}</span>
+                    <button 
+                      onClick={(e) => closeTab(e, tab)}
+                      className="p-0.5 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-zinc-300 transition"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* ACTIVE TAB WORKSPACE CONTENT */}
-          <div className="flex-1 overflow-hidden relative select-text">
-            {/* IF NO TABS OPEN DISPLAY FALLBACK */}
-            {openTabs.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-2">
-                <Heart size={40} className="text-zinc-600 mb-2 animate-pulse" />
-                <span className="text-sm font-semibold">Workspace Empty</span>
-                <span className="text-xs text-zinc-600">Select a file in the File Explorer sidebar to show source code</span>
-              </div>
-            )}
-
-            {/* EXTENSION INTERACTIVE DASHBOARD VIEW */}
-            {activeTab === '❤️ Dashboard' && (
-              <div className="h-full overflow-y-auto bg-[#1e1e1e] text-[#cccccc] p-8 select-none">
-                
-                {/* Dashboard top header summary banner */}
-                <div className="max-w-4xl mx-auto flex flex-col gap-6">
-                  
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-[#2d2d2d]">
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                          <Heart fill="currentColor" size={24} className="text-indigo-500 animate-pulse" />
-                          Focus Recovery Assistant
+          {/* ACTIVE TAB MAIN RENDER CONTAINER */}
+          <div className="flex-1 overflow-hidden">
+            <AnimatePresence mode="wait">
+              {/* README View tab */}
+              {activeTab === 'README.md' && (
+                <motion.div 
+                  key="readme"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="h-full overflow-y-auto p-6 md:p-10 text-zinc-300 leading-relaxed bg-[#1e1e1e]"
+                >
+                  <div className="max-w-3xl mx-auto space-y-6">
+                    <div className="border-b border-[#2d2d2d] pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                          ❤️ Focus Recovery Extension
                         </h1>
-                        <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-950/50 text-emerald-400 border border-emerald-800/40">
-                          Active State
-                        </span>
+                        <p className="text-zinc-400 text-xs mt-1">A pure installable Visual Studio Code extension for workspace physical wellness.</p>
                       </div>
-                      <p className="text-xs text-zinc-400">
-                        A clean, offline-first development companion for posture, optical focus, and breathing recoveries.
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2 shrink-0">
-                      <button 
-                        onClick={startRecoverySession}
-                        disabled={isSessionRunning}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed text-white text-xs font-semibold rounded shadow-md border border-indigo-500 transition-all duration-200"
-                      >
-                        <Play size={13} fill="currentColor" />
-                        <span>Start Recovery Session</span>
-                      </button>
                       <button 
                         onClick={() => {
-                          setActiveSidebarTab('settings');
-                          selectTab('⚙️ Settings');
+                          EXTENSION_FILES.forEach(file => downloadSingleFile(file));
+                          showToast("Downloaded all extension files in a batch!", "success");
                         }}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-zinc-300 text-xs font-semibold rounded border border-[#3c3c3c] transition-all duration-200"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded text-xs transition cursor-pointer shrink-0"
                       >
-                        <Sliders size={13} />
-                        <span>Configure Parameters</span>
+                        <Download size={13} />
+                        <span>Download Extension Bundle</span>
                       </button>
                     </div>
-                  </div>
 
-                  {/* ACTIVE RECOVERY SEQUENCE CONTROLLER OR STATS PANEL */}
-                  {isSessionRunning ? (
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="bg-zinc-950/70 border border-indigo-500/30 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden"
-                    >
-                      {/* Interactive background ambient light glow */}
-                      <div className="absolute inset-0 bg-radial-gradient from-indigo-500/5 to-transparent pointer-events-none" />
-
-                      {/* Speed up test and sound controls */}
-                      <div className="absolute top-4 right-4 flex items-center gap-3">
-                        <button 
-                          onClick={() => setIsMuted(prev => !prev)}
-                          className="p-2 text-zinc-400 hover:text-white bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg transition"
-                          title={isMuted ? "Unmute audio alerts" : "Mute audio alerts"}
-                        >
-                          {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                        </button>
-                        <button 
-                          onClick={() => setIsFastForward(prev => !prev)}
-                          className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded border transition ${isFastForward ? 'bg-amber-950/40 text-amber-400 border-amber-800/60' : 'bg-[#1a1a1a] text-zinc-400 border-[#2d2d2d] hover:text-white'}`}
-                          title="Speed up timers for testing"
-                        >
-                          <FastForward size={12} className={isFastForward ? "animate-bounce" : ""} />
-                          <span>Simulate 10x Speed</span>
-                        </button>
+                    <div className="bg-indigo-950/20 border border-indigo-800/20 rounded-lg p-4 flex gap-3 text-xs text-indigo-300">
+                      <AlertCircle size={16} className="text-indigo-400 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-white block mb-1">Local Development Workspace</span>
+                        This interface lets you explore the complete extension architecture, copy individual file sources, and test the code interactively before compiling. To export the full bundle, use the AI Studio **Export as ZIP** option in the settings menu or batch download using the button above.
                       </div>
+                    </div>
 
-                      {/* Header progression labels */}
-                      <div className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest font-mono mb-1">
-                        Active Workout Cycle • {activeLevelConfig.displayName}
+                    <div className="space-y-4">
+                      <h2 className="text-base font-bold text-white border-l-2 border-indigo-500 pl-3">How to Install & Run Privately in VS Code</h2>
+                      <ol className="list-decimal pl-5 text-xs text-zinc-400 space-y-3.5">
+                        <li>
+                          <strong className="text-zinc-200">Extract Workspace:</strong> Copy the code files from this explorer or download the standalone bundle ZIP.
+                        </li>
+                        <li>
+                          <strong className="text-zinc-200">Open Directory in VS Code:</strong> Go to <code className="px-1 py-0.5 bg-zinc-800 rounded font-mono text-[11px] text-zinc-300">File &gt; Open Folder...</code> and open the standalone directory.
+                        </li>
+                        <li>
+                          <strong className="text-zinc-200">Install Dependencies:</strong> Launch the VS Code terminal (<code className="px-1 py-0.5 bg-zinc-800 rounded font-mono text-[11px]">Ctrl+~</code>) and run:
+                          <pre className="mt-1.5 p-2 bg-[#121212] rounded text-indigo-300 font-mono text-[11px] select-all">npm install</pre>
+                        </li>
+                        <li>
+                          <strong className="text-zinc-200">Compile Source Code:</strong> Compile TypeScript files:
+                          <pre className="mt-1.5 p-2 bg-[#121212] rounded text-indigo-300 font-mono text-[11px] select-all">npm run compile</pre>
+                        </li>
+                        <li>
+                          <strong className="text-zinc-200">Debug and Run:</strong> Press <kbd className="px-1 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-300 text-[10px]">F5</kbd> on your keyboard. This opens a sandbox **[Extension Development Host]** window with the active extension running!
+                        </li>
+                      </ol>
+                    </div>
+
+                    <div className="pt-4 space-y-3">
+                      <h2 className="text-base font-bold text-white border-l-2 border-indigo-500 pl-3">Testing Commands Inside Host</h2>
+                      <p className="text-xs text-zinc-400">
+                        In the newly launched extension development host window, open the Command Palette with <code className="px-1 py-0.5 bg-zinc-800 rounded font-mono text-[11px]">Ctrl+Shift+P</code> (or <code className="px-1 py-0.5 bg-zinc-800 rounded font-mono text-[11px]">Cmd+Shift+P</code> on macOS) to trigger these actions:
+                      </p>
+                      <ul className="list-disc pl-5 text-xs text-zinc-400 space-y-2">
+                        <li><strong className="text-zinc-200">Focus Recovery: Start Session</strong> - Initiates holding intervals.</li>
+                        <li><strong className="text-zinc-200">Focus Recovery: Show Statistics</strong> - Opens the integrated visual webview statistics dashboard.</li>
+                        <li><strong className="text-zinc-200">Focus Recovery: Change Difficulty</strong> - Configures static difficulty levels manually.</li>
+                        <li><strong className="text-zinc-200">Focus Recovery: Export Progress</strong> - Generates backup JSON.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Stats Visual Webview Panel Simulator */}
+              {activeTab === '❤️ Dashboard' && (
+                <motion.div 
+                  key="dashboard"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="h-full overflow-y-auto p-4 md:p-6 bg-[#1e1e1e] text-[#cccccc]"
+                >
+                  <div className="max-w-4xl mx-auto space-y-6">
+                    {/* Simulator Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#2d2d2d] pb-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h1 className="text-lg font-bold text-white">❤️ Focus Recovery Dashboard</h1>
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 bg-emerald-950/60 text-emerald-300 border border-emerald-800/30 rounded-full">Webview Simulator</span>
+                        </div>
+                        <p className="text-zinc-500 text-xs">High-fidelity webview rendering exactly as displayed in VS Code's editor columns.</p>
                       </div>
                       
-                      {/* Simulated Large Respiratory Visual Indicator Ring */}
-                      <div className="relative w-44 h-44 my-6 flex items-center justify-center">
-                        {/* Static outer ring */}
-                        <div className="absolute inset-0 rounded-full border-4 border-indigo-950" />
-                        
-                        {/* Dynamic animated breathing expanding rings */}
-                        <AnimatePresence mode="popLayout">
-                          {sessionPhase === 'prepare' && (
-                            <motion.div 
-                              key="prepare-ring"
-                              initial={{ scale: 0.8, opacity: 0 }}
-                              animate={{ scale: [0.8, 1.1, 0.8], opacity: 0.6 }}
-                              transition={{ repeat: Infinity, duration: 2.5 }}
-                              className="absolute inset-1 rounded-full border-2 border-dashed border-amber-500"
-                            />
-                          )}
-                          {sessionPhase === 'hold' && (
-                            <motion.div 
-                              key="hold-ring"
-                              initial={{ scale: 0.7 }}
-                              animate={{ scale: 1.15 }}
-                              transition={{ duration: isFastForward ? activeLevelConfig.holdDuration / 10 : activeLevelConfig.holdDuration, ease: "easeInOut" }}
-                              className="absolute inset-1 rounded-full bg-emerald-500/10 border-4 border-emerald-500"
-                            />
-                          )}
-                          {sessionPhase === 'rest' && (
-                            <motion.div 
-                              key="rest-ring"
-                              initial={{ scale: 1.15 }}
-                              animate={{ scale: 0.75 }}
-                              transition={{ duration: isFastForward ? activeLevelConfig.restDuration / 10 : activeLevelConfig.restDuration, ease: "easeInOut" }}
-                              className="absolute inset-1 rounded-full bg-sky-500/10 border-4 border-sky-400"
-                            />
-                          )}
-                        </AnimatePresence>
-
-                        {/* Centered Phase Display text */}
-                        <div className="flex flex-col items-center justify-center z-10">
-                          <span className="text-2xl font-bold font-mono text-white tracking-tight">
-                            {sessionTimeRemaining}s
-                          </span>
-                          <span className={`text-xs font-extrabold uppercase mt-1 tracking-wider ${
-                            sessionPhase === 'prepare' ? 'text-amber-400' :
-                            sessionPhase === 'hold' ? 'text-emerald-400' : 'text-sky-400'
-                          }`}>
-                            {sessionPhase === 'prepare' ? "Prepare" :
-                             sessionPhase === 'hold' ? "Activate" : "Relax"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Phase instructions */}
-                      <div className="h-14 max-w-sm mb-4">
-                        <AnimatePresence mode="wait">
-                          <motion.p 
-                            key={sessionPhase}
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -5 }}
-                            className="text-xs text-zinc-300 leading-relaxed font-sans"
+                      <div className="flex items-center gap-2">
+                        {isSessionRunning ? (
+                          <button 
+                            onClick={cancelActiveSession}
+                            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded text-xs transition cursor-pointer"
                           >
-                            {sessionPhase === 'prepare' && "Breathe cleanly. Align your spinal support and adjust your lower shoulders."}
-                            {sessionPhase === 'hold' && "Deep spinal traction: pull shoulder blades down, push neck gently back, expand chest. Deep core hold."}
-                            {sessionPhase === 'rest' && "Release support muscles. Look completely away from screens, focusing on a far distance object (>20ft)."}
-                          </motion.p>
-                        </AnimatePresence>
-                      </div>
-
-                      {/* Session Details */}
-                      <div className="flex gap-4 mb-6 text-xs text-zinc-400 bg-zinc-900 px-4 py-2 rounded-lg border border-[#2d2d2d] font-mono">
-                        <div>Repetition: <strong className="text-white">{sessionRep} / {activeLevelConfig.reps}</strong></div>
-                        <div className="text-zinc-600">|</div>
-                        <div>Set: <strong className="text-white">1 / 1</strong></div>
-                        <div className="text-zinc-600">|</div>
-                        <div>Goal: <strong className="text-white">{activeLevelConfig.displayName}</strong></div>
-                      </div>
-
-                      {/* Controls Buttons */}
-                      <div className="flex items-center gap-3">
+                            Cancel Active Session
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={startRecoverySession}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded text-xs transition cursor-pointer"
+                          >
+                            Start Focus Session
+                          </button>
+                        )}
                         <button 
                           onClick={() => {
-                            // Simple manual step skip
-                            setSessionTimeRemaining(0);
-                            playSound(600, 'sine', 0.1);
+                            setActiveSidebarTab('settings');
+                            selectTab('⚙️ Settings');
                           }}
-                          className="px-4 py-1.5 bg-[#1e1e1e] hover:bg-[#2d2d2d] border border-[#3c3c3c] text-xs text-zinc-300 hover:text-white rounded transition"
+                          className="px-3 py-1.5 bg-[#2d2d2d] hover:bg-[#333333] text-zinc-300 rounded text-xs transition border border-[#3e4147]"
                         >
-                          Skip State
-                        </button>
-                        <button 
-                          onClick={cancelActiveSession}
-                          className="px-4 py-1.5 bg-rose-950/50 hover:bg-rose-900/50 border border-rose-800/40 text-xs text-rose-300 hover:text-rose-200 rounded transition font-semibold"
-                        >
-                          Cancel Workout
+                          Settings
                         </button>
                       </div>
+                    </div>
 
-                    </motion.div>
-                  ) : (
-                    <>
-                      {/* STATS HIGHLIGHT GRID */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="bg-[#252526] p-5 rounded-lg border border-[#2d2d2d] flex flex-col gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Goal Target Level</span>
-                          <span className="text-lg font-bold text-white">{activeLevelConfig.displayName}</span>
-                          <div className="h-1.5 bg-[#2d2d2d] rounded-full overflow-hidden mt-1.5">
-                            {/* Completions percent toward next level */}
-                            {(() => {
-                              const comps = history.filter(h => h.level === currentLevel && h.completed).length;
-                              const pct = Math.min((comps / 5) * 100, 100);
-                              return (
-                                <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                              );
-                            })()}
+                    {/* Timer Interface during active simulation */}
+                    {isSessionRunning && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="p-5 bg-gradient-to-r from-indigo-950/40 to-slate-900 border border-indigo-500/30 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
+                            <span className="text-xs uppercase font-bold text-indigo-400 tracking-wider">
+                              Active Routine Phase: {sessionPhase.toUpperCase()}
+                            </span>
                           </div>
-                          <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
-                            <span>Adaptive Progress</span>
-                            <span>{history.filter(h => h.level === currentLevel && h.completed).length % 5} / 5 Sessions</span>
-                          </div>
-                        </div>
-
-                        <div className="bg-[#252526] p-5 rounded-lg border border-[#2d2d2d] flex flex-col gap-1">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Continuous Streak</span>
-                          <span className="text-3xl font-extrabold text-white mt-1">{currentStreak} Days</span>
-                          <span className="text-[10px] text-zinc-400 mt-auto flex items-center gap-1">
-                            <TrendingUp size={12} className="text-indigo-400" />
-                            Keep doing 1 session daily to build muscle memory
-                          </span>
-                        </div>
-
-                        <div className="bg-[#252526] p-5 rounded-lg border border-[#2d2d2d] flex flex-col gap-1">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Completed Sessions</span>
-                          <span className="text-3xl font-extrabold text-white mt-1">{totalSessions} Sessions</span>
-                          <span className="text-[10px] text-zinc-400 mt-auto flex items-center gap-1">
-                            <Calendar size={12} className="text-indigo-400" />
-                            {lastCompletedSession ? `Last: ${new Date(lastCompletedSession).toLocaleDateString()}` : "No completed sessions"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* LOWER GRAPHICS AND HISTORIC LOGS SECTION */}
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Weekly Activity visualizer block */}
-                        <div className="bg-[#252526] p-5 rounded-lg border border-[#2d2d2d] flex flex-col">
-                          <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-1.5">
-                            <TrendingUp size={14} className="text-indigo-400" />
-                            Weekly Completed Load Analysis
-                          </h3>
-                          {renderWeeklyActivityChart()}
-                          <p className="text-[10px] text-zinc-500 italic mt-3 text-center">
-                            Calculated across standard morning and evening interval triggers.
+                          <h2 className="text-xl font-bold text-white mt-1">
+                            {sessionPhase === 'prepare' && "Prepare Body & Get Ready..."}
+                            {sessionPhase === 'hold' && `HOLD Phase (Repetition ${sessionRep}/${activeLevelConfig.reps})`}
+                            {sessionPhase === 'rest' && `RELAX & Look Away (Repetition ${sessionRep}/${activeLevelConfig.reps})`}
+                          </h2>
+                          <p className="text-zinc-400 text-xs mt-0.5">
+                            {sessionPhase === 'prepare' && "Find a neutral spine alignment. Lower shoulders."}
+                            {sessionPhase === 'hold' && "Hold the active physical stretching position silently."}
+                            {sessionPhase === 'rest' && "Release hold, relax upper traps, and focus eyes on a distant point."}
                           </p>
                         </div>
 
-                        {/* Recent workouts table logs */}
-                        <div className="bg-[#252526] p-5 rounded-lg border border-[#2d2d2d] flex flex-col">
-                          <h3 className="text-sm font-semibold text-white mb-4">
-                            History Logs
-                          </h3>
-                          <div className="flex-1 overflow-y-auto max-h-[160px] flex flex-col gap-2 pr-1">
-                            {history.length === 0 ? (
-                              <div className="flex flex-col items-center justify-center h-full text-zinc-500 py-6">
-                                <AlertCircle size={18} className="text-zinc-600 mb-1" />
-                                <span className="text-xs italic">No workout history logged.</span>
-                              </div>
-                            ) : (
-                              [...history].reverse().slice(0, 4).map((h, i) => (
-                                <div key={i} className="flex justify-between items-center bg-[#1e1e1e] p-2.5 rounded border border-[#2d2d2d] text-xs">
-                                  <div className="flex flex-col">
-                                    <span className="font-semibold text-white">Level {h.level} Recovery Routine</span>
-                                    <span className="text-[10px] text-zinc-500">
-                                      {new Date(h.timestamp).toLocaleDateString()} {new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <div className="flex items-center gap-4 shrink-0">
+                          <div className="flex flex-col items-center">
+                            <span className="text-3xl font-extrabold text-white font-mono tracking-tight bg-[#121212] px-4 py-2 rounded-lg border border-zinc-800">
+                              {sessionTimeRemaining}s
+                            </span>
+                          </div>
+                          <button 
+                            onClick={cancelActiveSession}
+                            className="px-3.5 py-2 bg-red-950/40 hover:bg-red-950/60 text-red-400 rounded-lg border border-red-900/30 text-xs font-semibold transition"
+                          >
+                            Abrupt End
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Stats Highlights Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="p-4 bg-[#252526] border border-[#2d2d2d] rounded-lg">
+                        <span className="text-zinc-500 text-[10px] font-bold block uppercase tracking-wide">Current Target Goal</span>
+                        <span className="text-xl font-extrabold text-white block mt-1">{activeLevelConfig.displayName}</span>
+                        <div className="h-1.5 bg-zinc-800 rounded-full mt-3 overflow-hidden">
+                          <div className="h-full bg-indigo-500 rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+                        </div>
+                        <div className="flex justify-between items-center mt-1.5 text-[10px] text-zinc-500">
+                          <span>Next Level Progress</span>
+                          <span>{completionsAtCurrent} / 5 Sessions</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-[#252526] border border-[#2d2d2d] rounded-lg">
+                        <span className="text-zinc-500 text-[10px] font-bold block uppercase tracking-wide">Daily Habit Streak</span>
+                        <span className="text-xl font-extrabold text-white block mt-1">{currentStreak} Days</span>
+                        <p className="text-[10px] text-zinc-500 mt-2">Maintain physical fitness daily inside your local workspace.</p>
+                      </div>
+
+                      <div className="p-4 bg-[#252526] border border-[#2d2d2d] rounded-lg">
+                        <span className="text-zinc-500 text-[10px] font-bold block uppercase tracking-wide">Completed Sessions</span>
+                        <span className="text-xl font-extrabold text-white block mt-1">{totalSessions} Sessions</span>
+                        <p className="text-[10px] text-zinc-500 mt-2">Last completion: {lastCompletedSession ? new Date(lastCompletedSession).toLocaleDateString() : 'Never'}</p>
+                      </div>
+                    </div>
+
+                    {/* Charts & Guidelines split layout */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div className="lg:col-span-2 space-y-4">
+                        <div className="p-4 bg-[#252526] border border-[#2d2d2d] rounded-lg">
+                          <span className="text-zinc-400 text-xs font-bold block uppercase tracking-wider mb-2">Simulated Week Overview</span>
+                          {renderWeeklyActivityChart()}
+                        </div>
+
+                        {/* Recent History log */}
+                        <div className="p-4 bg-[#252526] border border-[#2d2d2d] rounded-lg">
+                          <span className="text-zinc-400 text-xs font-bold block uppercase tracking-wider mb-3">Recent Activity Logs</span>
+                          <div className="space-y-2">
+                            {history.length > 0 ? (
+                              history.slice(-4).reverse().map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-center p-2.5 bg-[#1e1e1e] border border-[#2d2d2d] rounded">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="text-xs font-bold text-white">Level {item.level} Session</span>
+                                    <span className="text-[10px] text-zinc-500 font-mono">
+                                      {new Date(item.timestamp).toLocaleDateString()} at {new Date(item.timestamp).toLocaleTimeString()} • {item.reps} reps
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[10px] text-zinc-400">{h.reps} Reps • {h.holdDuration}s Hold</span>
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
-                                      Completed
-                                    </span>
-                                  </div>
+                                  <span className="text-[9px] font-bold tracking-wide text-emerald-400 px-2 py-0.5 bg-emerald-950/40 rounded border border-emerald-900/20 uppercase">
+                                    COMPLETED
+                                  </span>
                                 </div>
                               ))
+                            ) : (
+                              <div className="text-center py-6 text-zinc-500 text-xs italic">
+                                No completed cycles logged. Click Start Session to log physical cycles.
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* INFORMATIVE EXERCISE TUTORIALS PANEL */}
-                      <div className="bg-[#252526]/50 rounded-lg p-5 border border-[#2d2d2d] flex flex-col gap-3">
-                        <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                          <Sparkles size={14} className="text-indigo-400" />
-                          Focus Recovery Wellness Protocols
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                          <div className="p-3 bg-[#1e1e1e] rounded border border-[#2d2d2d]">
-                            <strong className="text-indigo-300 block mb-1">🧘 Upper Spine & Cervical Traction</strong>
-                            Pull shoulder blades down, lift lower neck, pull chin inward (military posture). Retract neck 1 inch backward. Holds spinal support and combats forward-head slouching.
-                          </div>
-                          <div className="p-3 bg-[#1e1e1e] rounded border border-[#2d2d2d]">
-                            <strong className="text-indigo-300 block mb-1">👀 Focal Optical Reset</strong>
-                            Direct eyes completely away from light screens. Focus clearly on an object at least 20 feet away to relax ciliary ocular lens muscles and combat digital eye strain.
-                          </div>
-                          <div className="p-3 bg-[#1e1e1e] rounded border border-[#2d2d2d]">
-                            <strong className="text-indigo-300 block mb-1">🫁 Lower Costal Breathing</strong>
-                            Conduct slow, diaphragmatic breaths. Retaining air deep in the lungs for holds enhances local cellular oxygenation, clearing cognitive fatigue during screen intervals.
-                          </div>
+                      {/* Side instructions manual */}
+                      <div className="space-y-4">
+                        <div className="p-4 bg-indigo-950/10 border border-indigo-900/20 rounded-lg text-xs leading-relaxed">
+                          <span className="text-white font-bold block mb-2">Posture Guidelines</span>
+                          <ol className="space-y-3.5 text-zinc-400 list-decimal pl-4">
+                            <li><strong className="text-zinc-200">Align Spine:</strong> Tuck chin slightly, pull shoulders back and down. Don't slouch.</li>
+                            <li><strong className="text-zinc-200">Hold Duration:</strong> Keep eyes active, breathing deeply through the chest.</li>
+                            <li><strong className="text-zinc-200">Optical Rest:</strong> Look away from monitors and focus on distant object (&gt;20 feet away) to ease ocular focus fatigue.</li>
+                          </ol>
                         </div>
                       </div>
-                    </>
-                  )}
-
-                </div>
-              </div>
-            )}
-
-            {/* EXTENSION SETTINGS TABS VIEW */}
-            {activeTab === '⚙️ Settings' && (
-              <div className="h-full overflow-y-auto bg-[#1e1e1e] p-8">
-                <div className="max-w-2xl mx-auto flex flex-col gap-6 select-none">
-                  <div className="border-b border-[#2d2d2d] pb-4">
-                    <h1 className="text-xl font-bold text-white">Focus Recovery User Preferences</h1>
-                    <p className="text-xs text-zinc-400 mt-1">
-                      Customize local schedules and reminder times. Values modify VS Code globalState files.
-                    </p>
+                    </div>
                   </div>
+                </motion.div>
+              )}
 
-                  <div className="flex flex-col gap-5 text-sm bg-[#252526] p-6 rounded-lg border border-[#2d2d2d]">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="font-semibold text-zinc-200">focusRecovery.morningReminder</label>
-                        <span className="text-[11px] text-zinc-500">Morning alarm scheduled time. Default is 08:00 AM.</span>
+              {/* Settings preferences view tab */}
+              {activeTab === '⚙️ Settings' && (
+                <div className="h-full overflow-y-auto p-6 md:p-10 text-zinc-300">
+                  <div className="max-w-xl mx-auto space-y-6">
+                    <div>
+                      <h1 className="text-lg font-bold text-white">⚙️ Focus Recovery Preferences</h1>
+                      <p className="text-zinc-500 text-xs">Local VS Code configurations mapping to user settings.</p>
+                    </div>
+
+                    <div className="p-4 bg-[#252526] border border-[#2d2d2d] rounded-lg space-y-4 text-xs">
+                      <div className="flex justify-between items-center border-b border-[#2d2d2d] pb-3">
+                        <div>
+                          <span className="text-white font-bold block">Morning Wellness Alarm</span>
+                          <p className="text-[10px] text-zinc-500 mt-0.5">Time of morning reminders.</p>
+                        </div>
                         <input 
-                          type="time" 
-                          value={morningReminder}
+                          type="text" 
+                          value={morningReminder} 
                           onChange={(e) => {
                             setMorningReminder(e.target.value);
                             saveConfigToLocal('morning', e.target.value);
-                            addLog(`focusRecovery.morningReminder updated to ${e.target.value}`);
+                            addLog(`Config updated: morningReminder = '${e.target.value}'`);
                           }}
-                          className="bg-[#1e1e1e] text-white border border-[#3c3c3c] px-3 py-1.5 rounded outline-none focus:border-indigo-500"
+                          className="bg-[#1e1e1e] border border-[#3e4147] rounded p-1.5 text-white outline-none focus:border-indigo-500 text-[11px] font-mono text-center w-20"
                         />
                       </div>
 
-                      <div className="flex flex-col gap-1.5">
-                        <label className="font-semibold text-zinc-200">focusRecovery.eveningReminder</label>
-                        <span className="text-[11px] text-zinc-500">Evening alarm scheduled time. Default is 07:00 PM.</span>
+                      <div className="flex justify-between items-center border-b border-[#2d2d2d] pb-3">
+                        <div>
+                          <span className="text-white font-bold block">Evening Wellness Alarm</span>
+                          <p className="text-[10px] text-zinc-500 mt-0.5">Time of evening focus recovery prompts.</p>
+                        </div>
                         <input 
-                          type="time" 
-                          value={eveningReminder}
+                          type="text" 
+                          value={eveningReminder} 
                           onChange={(e) => {
                             setEveningReminder(e.target.value);
                             saveConfigToLocal('evening', e.target.value);
-                            addLog(`focusRecovery.eveningReminder updated to ${e.target.value}`);
+                            addLog(`Config updated: eveningReminder = '${e.target.value}'`);
                           }}
-                          className="bg-[#1e1e1e] text-white border border-[#3c3c3c] px-3 py-1.5 rounded outline-none focus:border-indigo-500"
+                          className="bg-[#1e1e1e] border border-[#3e4147] rounded p-1.5 text-white outline-none focus:border-indigo-500 text-[11px] font-mono text-center w-20"
+                        />
+                      </div>
+
+                      <div className="flex justify-between items-center border-b border-[#2d2d2d] pb-3">
+                        <div>
+                          <span className="text-white font-bold block">Adaptive Progression Logic</span>
+                          <p className="text-[10px] text-zinc-500 mt-0.5">Automatically advances level every 5 completions.</p>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={autoProgress} 
+                          onChange={handleToggleAutoProgress}
+                          className="cursor-pointer accent-indigo-500 w-4 h-4"
+                        />
+                      </div>
+
+                      {!autoProgress && (
+                        <div className="flex justify-between items-center border-b border-[#2d2d2d] pb-3">
+                          <div>
+                            <span className="text-white font-bold block">Manual Override Level</span>
+                            <p className="text-[10px] text-zinc-500 mt-0.5">Select difficulty override level.</p>
+                          </div>
+                          <select 
+                            value={difficulty}
+                            onChange={(e) => handleChangeManualDifficulty(e.target.value)}
+                            className="bg-[#1e1e1e] border border-[#3e4147] rounded p-1 text-white outline-none text-[11px]"
+                          >
+                            {PROGRESSION_LEVELS.map(l => (
+                              <option key={l.displayName} value={l.displayName}>{l.displayName}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="text-white font-bold block">Soundless Alarms notifications</span>
+                          <p className="text-[10px] text-zinc-500 mt-0.5">Trigger visual popup alerts without sound.</p>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={enableNotifications} 
+                          onChange={(e) => {
+                            setEnableNotifications(e.target.checked);
+                            saveConfigToLocal('enable_notifs', e.target.checked);
+                            addLog(`Config updated: enableNotifications = ${e.target.checked}`);
+                          }}
+                          className="cursor-pointer accent-indigo-500 w-4 h-4"
                         />
                       </div>
                     </div>
-
-                    <div className="flex items-center justify-between py-3 border-t border-[#2d2d2d] mt-2">
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-zinc-200">focusRecovery.autoProgress</span>
-                        <span className="text-xs text-zinc-500 max-w-md">
-                          When checked, the extension automatically increases difficulty level every 5 completed sessions.
-                        </span>
-                      </div>
-                      <input 
-                        type="checkbox"
-                        checked={autoProgress}
-                        onChange={handleToggleAutoProgress}
-                        className="w-4 h-4 rounded text-indigo-500 focus:ring-0 cursor-pointer bg-[#1e1e1e]"
-                      />
-                    </div>
-
-                    {!autoProgress && (
-                      <div className="flex flex-col gap-1.5 border-t border-[#2d2d2d] pt-3">
-                        <label className="font-semibold text-zinc-200">focusRecovery.difficulty</label>
-                        <span className="text-xs text-zinc-500 mb-1">Specify difficulty preset manual level override.</span>
-                        <select
-                          value={difficulty}
-                          onChange={(e) => handleChangeManualDifficulty(e.target.value)}
-                          className="bg-[#1e1e1e] text-white border border-[#3c3c3c] px-3 py-2 rounded cursor-pointer outline-none focus:border-indigo-500"
-                        >
-                          {PROGRESSION_LEVELS.map(l => (
-                            <option key={l.level} value={l.displayName}>{l.displayName}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between py-3 border-t border-[#2d2d2d]">
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-zinc-200">focusRecovery.enableNotifications</span>
-                        <span className="text-xs text-zinc-500 max-w-md">
-                          Enables desktop notifications and background alarms during active scheduled hours.
-                        </span>
-                      </div>
-                      <input 
-                        type="checkbox"
-                        checked={enableNotifications}
-                        onChange={(e) => {
-                          setEnableNotifications(e.target.checked);
-                          saveConfigToLocal('enable_notifs', e.target.checked);
-                          addLog(`focusRecovery.enableNotifications set to ${e.target.checked}`);
-                        }}
-                        className="w-4 h-4 rounded text-indigo-500 focus:ring-0 cursor-pointer bg-[#1e1e1e]"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between py-3 border-t border-[#2d2d2d]">
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-zinc-200">focusRecovery.enableStatusBar</span>
-                        <span className="text-xs text-zinc-500 max-w-md">
-                          Adds quick-shortcut Heart icon in VS Code status bar for starting a session.
-                        </span>
-                      </div>
-                      <input 
-                        type="checkbox"
-                        checked={enableStatusBar}
-                        onChange={(e) => {
-                          setEnableStatusBar(e.target.checked);
-                          saveConfigToLocal('enable_status', e.target.checked);
-                          addLog(`focusRecovery.enableStatusBar set to ${e.target.checked}`);
-                        }}
-                        className="w-4 h-4 rounded text-indigo-500 focus:ring-0 cursor-pointer bg-[#1e1e1e]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="bg-[#252526] p-6 rounded-lg border border-[#2d2d2d] flex flex-col gap-4">
-                    <h3 className="font-semibold text-white">Database Operations & Progress Recovery</h3>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      All your statistics, streaks and histories are saved completely locally using VS Code's local 
-                      <code>globalState</code> cache storage without a central server. You can export or import backups below.
-                    </p>
-
-                    <div className="flex flex-wrap gap-2.5">
-                      <button 
-                        onClick={handleExportData}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded shadow-sm border border-indigo-500 transition"
-                      >
-                        <Download size={13} />
-                        <span>Export Progress Backup</span>
-                      </button>
-                      <button 
-                        onClick={() => document.getElementById('hidden-import-input-settings')?.click()}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-zinc-300 text-xs font-semibold rounded border border-[#3c3c3c] transition"
-                      >
-                        <Plus size={13} />
-                        <span>Import Progress Backup</span>
-                      </button>
-                      <input 
-                        id="hidden-import-input-settings"
-                        type="file" 
-                        accept=".json"
-                        onChange={handleImportData}
-                        className="hidden"
-                      />
-                      <button 
-                        onClick={handleResetProgress}
-                        className="px-4 py-2 bg-rose-950/40 hover:bg-rose-950/60 text-rose-300 text-xs font-semibold rounded border border-rose-800/40 transition ml-auto"
-                      >
-                        Clear Database Progress
-                      </button>
-                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* DIRECT CODE FILES RENDER VIEWPORTS */}
-            {EXTENSION_FILES.map(file => {
-              if (activeTab === file.path || activeTab === file.name) {
-                return (
-                  <div key={file.path} className="h-full">
-                    {renderCodeEditor(file)}
-                  </div>
-                );
-              }
-              return null;
-            })}
-
-            {/* RENDER README TAB MANUALLY FOR BETTER LAYOUT */}
-            {activeTab === 'README.md' && (
-              <div className="h-full overflow-y-auto bg-[#1e1e1e] p-8 leading-relaxed select-text text-sm">
-                <div className="max-w-3xl mx-auto text-[#cccccc]">
-                  
-                  {/* File descriptions / Top buttons */}
-                  <div className="flex items-center justify-between pb-6 mb-6 border-b border-[#2d2d2d]">
-                    <div className="flex items-center gap-3">
-                      <FileText size={18} className="text-sky-500 shrink-0" />
-                      <div>
-                        <h1 className="text-lg font-bold text-white font-mono">README.md</h1>
-                        <p className="text-xs text-zinc-400">Extension Setup and Local Compiling Guide</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => copyFileToClipboard("README.md", EXTENSION_FILES.find(f => f.name === "README.md")?.content || "")}
-                      className="flex items-center gap-1.5 px-3 py-1 bg-[#2f3136] hover:bg-[#3f4248] text-xs font-semibold rounded border border-[#3e4147] text-white"
-                    >
-                      <Copy size={12} />
-                      <span>Copy README</span>
-                    </button>
-                  </div>
-
-                  <div className="prose prose-invert max-w-none text-zinc-300">
-                    <h1 className="text-2xl font-bold text-white mb-2">🧘 Focus Recovery Extension</h1>
-                    <p className="text-zinc-400 mb-6 text-sm">
-                      A beautifully polished Visual Studio Code wellness assistant. It automates spinal posture correction alignment, focal optical resetting breaks, and breathing cycles completely locally. <strong>No cloud. No telemetry. No APIs. No tracking.</strong>
-                    </p>
-
-                    <h2 className="text-lg font-bold text-white mt-6 mb-3 border-b border-[#2d2d2d] pb-1">Features</h2>
-                    <ul className="list-disc pl-5 flex flex-col gap-2 mb-6 text-sm">
-                      <li><strong>Progression Training Protocols</strong>: Supports 6 adaptive wellness levels containing calibrated hold durations, rest durations, and rep limits (from Level 1 Beginner to Level 6 Advanced).</li>
-                      <li><strong>Adaptive Difficulty Escalation</strong>: Tracks successful completions and increments active difficulty every 5 successful sessions. Override option is supportable inside configurations.</li>
-                      <li><strong>Schedules and Alarm Timers</strong>: Morning reminder at 8:00 AM and Evening reminder at 7:00 PM. Includes offline startup catch-up logic so missed schedules alert upon subsequent IDE launch.</li>
-                      <li><strong>Quick Status Shortcuts</strong>: Simple heart indicator shortcuts placed inside the status bar for instant routine starts.</li>
-                    </ul>
-
-                    <h2 className="text-lg font-bold text-white mt-6 mb-3 border-b border-[#2d2d2d] pb-1">Developer Compilation & Installation Guide</h2>
-                    <ol className="list-decimal pl-5 flex flex-col gap-3 mb-6 text-sm">
-                      <li>
-                        <strong>Create Project Workspace</strong>: Establish a folder named <code>focus-recovery</code> on your local disk.
-                      </li>
-                      <li>
-                        <strong>Replicate File Structure</strong>: Copy and save the files in the file explorer sidebar into their exact path structures.
-                      </li>
-                      <li>
-                        <strong>Install Modules</strong>: Open a system terminal in the project directory and run <code>npm install</code>.
-                      </li>
-                      <li>
-                        <strong>Build and Compile</strong>: Run <code>npm run compile</code> to trigger the TypeScript compiler.
-                      </li>
-                      <li>
-                        <strong>Launch Debugger Host</strong>: Press <code>F5</code> in VS Code (or navigate to Run Control side-rail and select "Launch Extension"). A secondary <strong>Extension Development Host</strong> window will open.
-                      </li>
-                      <li>
-                        <strong>Run Commands</strong>: Press <code>Ctrl+Shift+P</code> inside the development host window and run <code>Focus Recovery: Start Session</code>!
-                      </li>
-                    </ol>
-
-                    <div className="bg-indigo-950/20 border border-indigo-800/30 p-4 rounded-lg mt-6 flex items-start gap-3">
-                      <Sparkles size={16} className="text-indigo-400 shrink-0 mt-0.5" />
-                      <div className="text-xs leading-relaxed text-indigo-300">
-                        <strong>Developer Hint:</strong> Explore the other files in the left sidebar explorer (like <code>extension.ts</code> or <code>sessionManager.ts</code>) to view the complete production implementation code. You can copy the code directly!
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* SIMULATED VS CODE NOTIFICATION TOAST OVERLAYS */}
-          <div className="absolute bottom-4 right-4 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none select-none">
-            <AnimatePresence>
-              {toasts.map((toast) => (
-                <motion.div
-                  key={toast.id}
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  className="bg-[#252526] text-white border border-[#3c3c3c] rounded shadow-2xl p-4 flex flex-col gap-3 pointer-events-auto shadow-indigo-900/10"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <div className="pt-0.5">
-                      {toast.type === 'info' && <Bell size={15} className="text-indigo-400" />}
-                      {toast.type === 'success' && <Check size={15} className="text-emerald-400" />}
-                      {toast.type === 'warning' && <AlertCircle size={15} className="text-amber-400" />}
-                      {toast.type === 'error' && <X size={15} className="text-rose-400" />}
-                    </div>
-                    <span className="text-xs text-zinc-100 font-sans leading-relaxed">{toast.message}</span>
-                    <button 
-                      onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                      className="ml-auto text-zinc-500 hover:text-white"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                  {toast.actions && toast.actions.length > 0 && (
-                    <div className="flex gap-2 justify-end border-t border-[#3c3c3c] pt-2.5">
-                      {toast.actions.map((act, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            act.action();
-                            setToasts(prev => prev.filter(t => t.id !== toast.id));
-                          }}
-                          className={`px-3 py-1 text-[11px] font-bold rounded transition-colors ${
-                            idx === 0 
-                              ? 'bg-indigo-600 hover:bg-indigo-500 text-white' 
-                              : 'bg-[#2f3136] hover:bg-[#3f4248] text-zinc-300'
-                          }`}
-                        >
-                          {act.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              ))}
+              {/* Source Files tab content rendering */}
+              {activeTab.includes('src/') || activeTab === 'package.json' || activeTab === 'tsconfig.json' ? (
+                (() => {
+                  const matchedFile = EXTENSION_FILES.find(f => f.path === activeTab.replace('src/', 'src/'));
+                  const realFile = matchedFile || EXTENSION_FILES.find(f => f.name === activeTab);
+                  return realFile ? renderFileEditor(realFile) : <div className="p-10 text-zinc-500 italic">File not found.</div>;
+                })()
+              ) : null}
             </AnimatePresence>
           </div>
 
+          {/* 4. BOTTOM DOCKED DEVELOPER CONSOLE LOGS */}
+          <footer className="h-36 bg-[#181818] border-t border-[#2d2d2d] flex flex-col shrink-0 overflow-hidden text-xs">
+            <div className="h-8 bg-[#1e1e1e] border-b border-[#2d2d2d] px-4 flex justify-between items-center text-[#999999]">
+              <span className="font-bold text-[10px] uppercase tracking-wide flex items-center gap-1.5">
+                <Terminal size={11} className="text-zinc-500" />
+                <span>Simulated VS Code Output Logs</span>
+              </span>
+              <button 
+                onClick={() => setTerminalLogs(["[Focus Recovery] Stream refreshed."])}
+                className="text-[10px] text-zinc-500 hover:text-zinc-300 font-medium font-sans cursor-pointer"
+              >
+                Clear Log
+              </button>
+            </div>
+            <div className="flex-1 p-3 overflow-y-auto font-mono text-[11px] text-zinc-400 bg-[#121212] space-y-1 select-text scrollbar-none">
+              {terminalLogs.map((log, index) => (
+                <div key={index} className="leading-5">
+                  <span className="text-indigo-400 font-semibold select-none mr-2">&gt;</span>
+                  <span>{log}</span>
+                </div>
+              ))}
+            </div>
+          </footer>
+
+          {/* SIMULATED STATUS BAR SHORTCUT (Right Column Corner) */}
+          {enableStatusBar && (
+            <div className="h-5 bg-[#007acc] text-white text-[11px] flex items-center justify-between px-3 absolute bottom-0 left-0 right-0 z-10 font-sans">
+              <span className="font-medium">Developer Active Mode</span>
+              <button 
+                onClick={isSessionRunning ? cancelActiveSession : startRecoverySession}
+                className="flex items-center gap-1 hover:bg-white/20 px-2 h-full cursor-pointer transition font-mono text-[10px]"
+              >
+                <Heart size={10} fill="currentColor" className="text-rose-200" />
+                <span>{isSessionRunning ? `Focus Phase (${sessionTimeRemaining}s)` : "Start Focus Recovery"}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Hidden import launcher */}
+          <input 
+            type="file" 
+            id="hidden-import-input" 
+            className="hidden" 
+            accept=".json" 
+            onChange={handleImportData}
+          />
         </main>
       </div>
 
-      {/* 4. VS CODE STATUS BAR (Bottom Indicator Bar) */}
-      <footer className="h-6 bg-indigo-600 text-white text-xs px-3 flex items-center justify-between shrink-0 font-mono relative z-20">
-        <div className="flex items-center gap-4 h-full">
-          {/* Heart Status Item click starts session */}
-          {enableStatusBar && (
-            <button 
-              onClick={startRecoverySession}
-              className="flex items-center gap-1.5 h-full px-2 hover:bg-indigo-700 transition font-sans text-[11px] font-semibold text-white animate-pulse"
-              title="Click to start Focus Recovery Session"
+      {/* 5. FLOATING VS CODE NOTIFICATION TOAST POPUPS */}
+      <div className="fixed bottom-8 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div 
+              key={toast.id}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#252526] border border-[#3e4147] text-[#cccccc] shadow-2xl p-4 rounded-md pointer-events-auto flex flex-col gap-2"
             >
-              <Heart fill="currentColor" size={12} className="text-white" />
-              <span>Focus Recovery</span>
-            </button>
-          )}
-          <div className="hidden sm:flex items-center gap-1 text-indigo-200 text-[10px]">
-            <span>Branch:</span>
-            <strong className="text-white">main</strong>
-          </div>
-          <div className="hidden md:flex items-center gap-1.5 text-indigo-200 text-[10px]">
-            <Cpu size={12} className="text-indigo-200" />
-            <span>Sandbox Mode Active</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 h-full text-[10px] text-indigo-100">
-          <div className="hidden lg:block">Ln 1, Col 1</div>
-          <div className="hidden md:block">Spaces: 2</div>
-          <div>UTF-8</div>
-          <div>LF</div>
-          <div className="flex items-center gap-1.5 h-full px-2 hover:bg-indigo-700 transition cursor-pointer">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span>TypeScript JSX</span>
-          </div>
-        </div>
-      </footer>
+              <div className="flex items-start gap-2.5">
+                <Bell size={14} className="text-indigo-400 shrink-0 mt-0.5 animate-bounce" />
+                <div className="text-xs font-sans leading-relaxed text-zinc-100">{toast.message}</div>
+              </div>
+              {toast.actions && toast.actions.length > 0 && (
+                <div className="flex gap-2 justify-end mt-1">
+                  {toast.actions.map(act => (
+                    <button 
+                      key={act.label}
+                      onClick={() => {
+                        act.action();
+                        setToasts(prev => prev.filter(t => t.id !== toast.id));
+                      }}
+                      className="px-2.5 py-1 bg-[#0e639c] hover:bg-[#1177bb] text-white text-[10px] font-semibold rounded font-sans cursor-pointer transition"
+                    >
+                      {act.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
     </div>
   );

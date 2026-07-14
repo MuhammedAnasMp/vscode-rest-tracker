@@ -1,0 +1,105 @@
+{
+  "name": "focus-recovery",
+  "displayName": "Focus Recovery",
+  "description": "A local wellness, posture alignment, and screen-break assistant for VS Code.",
+  "version": "1.0.0",
+  "publisher": "wellness-labs",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "focusRecovery.startSession",
+        "title": "Focus Recovery: Start Session",
+        "category": "Focus Recovery"
+      },
+      {
+        "command": "focusRecovery.showStatistics",
+        "title": "Focus Recovery: Show Statistics",
+        "category": "Focus Recovery"
+      },
+      {
+        "command": "focusRecovery.changeDifficulty",
+        "title": "Focus Recovery: Change Difficulty",
+        "category": "Focus Recovery"
+      },
+      {
+        "command": "focusRecovery.resetProgress",
+        "title": "Focus Recovery: Reset Progress",
+        "category": "Focus Recovery"
+      },
+      {
+        "command": "focusRecovery.exportProgress",
+        "title": "Focus Recovery: Export Progress",
+        "category": "Focus Recovery"
+      },
+      {
+        "command": "focusRecovery.importProgress",
+        "title": "Focus Recovery: Import Progress",
+        "category": "Focus Recovery"
+      }
+    ],
+    "configuration": {
+      "title": "Focus Recovery Configuration",
+      "properties": {
+        "focusRecovery.morningReminder": {
+          "type": "string",
+          "default": "08:00",
+          "description": "Morning focus and wellness session reminder (HH:MM)."
+        },
+        "focusRecovery.eveningReminder": {
+          "type": "string",
+          "default": "19:00",
+          "description": "Evening focus recovery and wellness session reminder (HH:MM)."
+        },
+        "focusRecovery.autoProgress": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable adaptive progression (difficulty increases automatically every 5 sessions)."
+        },
+        "focusRecovery.difficulty": {
+          "type": "string",
+          "enum": [
+            "Beginner (Level 1)",
+            "Level 2",
+            "Level 3",
+            "Level 4",
+            "Level 5",
+            "Advanced (Level 6)"
+          ],
+          "default": "Beginner (Level 1)",
+          "description": "Difficulty overrides if autoProgress is disabled."
+        },
+        "focusRecovery.enableNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Trigger soundless visual VS Code alerts at scheduled reminder times."
+        },
+        "focusRecovery.enableStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Add a Heart shortcut in the VS Code status bar for starting sessions."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "^16.x",
+    "typescript": "^4.9.4"
+  }
+}
